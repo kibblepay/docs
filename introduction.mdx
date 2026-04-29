@@ -1,0 +1,47 @@
+---
+title: "Accept USDC payments and send invoices from your terminal"
+description: "Kibble lets you accept USDC on Base, send invoices, and track receivables via CLI or REST API — no Stripe account or bank integration required."
+---
+
+Kibble puts business payments directly in your terminal. You run `npx create-kibble`, answer a few questions, and walk away with a shareable payment link or a PDF invoice emailed to your vendor — all settled in USDC on Base. There is no Stripe account to provision, no bank integration to maintain, and no geography that blocks you: if your counterparty can send USDC on Base, Kibble works.
+
+## What Kibble does
+
+Kibble has two core product areas today.
+
+<CardGroup cols={2}>
+  <Card title="Payment links" icon="link" href="/concepts/payment-links">
+    Generate a unique URL and QR code tied to a deposit address. Share the link, the payer scans and sends USDC, and your merchant portal updates in real time.
+  </Card>
+  <Card title="Invoices" icon="file-text" href="/concepts/invoices">
+    Create itemized PDF invoices with line items, due dates, and notes. Kibble emails the invoice to your vendor and notifies you the moment it is paid.
+  </Card>
+</CardGroup>
+
+## Why USDC on Base
+
+Kibble only accepts USDC on Base (contract `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`, chain ID `8453`). This is a deliberate constraint — not a limitation. Base transactions settle in seconds, fees are negligible, and USDC is the most widely-held stablecoin. You get dollar-denominated payments without the volatility of other crypto assets.
+
+## Key differentiators
+
+- **No intermediary.** Payments go directly to your wallet. Kibble never holds your funds.
+- **Global by default.** Anyone with USDC on Base can pay you, regardless of country.
+- **CLI-first.** Every flow works from `npx create-kibble`. No GUI required.
+- **Automatable.** Non-interactive flags (`--yes`, `--stdin`) and a REST API let you script everything.
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get your first payment link live in under five minutes.
+  </Card>
+  <Card title="Payment links" icon="link" href="/concepts/payment-links">
+    Understand how links, deposit addresses, and merchant portals work.
+  </Card>
+  <Card title="Invoices" icon="file-text" href="/concepts/invoices">
+    Learn the invoice fields, statuses, and PDF download endpoint.
+  </Card>
+  <Card title="Wallets" icon="wallet" href="/concepts/wallets">
+    Choose between a Kibble-provisioned wallet and your own address.
+  </Card>
+</CardGroup>

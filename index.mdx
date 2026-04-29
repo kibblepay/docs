@@ -1,0 +1,55 @@
+---
+title: "Kibble: USDC payments and invoicing for global founders"
+description: "Kibble lets global founders accept USDC on Base, send PDF invoices, and track receivables — all from a CLI or REST API. No Stripe or bank account required."
+---
+
+Kibble is a crypto-native business banking platform built for global founders. Accept USDC on Base, generate payment links or professional PDF invoices, and get real-time payment notifications — all through a simple CLI or REST API. No traditional bank account or Stripe integration required.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get your first payment link live in under two minutes using the CLI.
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/cli/overview">
+    Use `npx create-kibble` to create payment links and invoices from your terminal.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Integrate Kibble payments directly into your application with the REST API.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/webhooks/overview">
+    Receive real-time notifications when payments are confirmed on-chain.
+  </Card>
+</CardGroup>
+
+## What you can do with Kibble
+
+<CardGroup cols={2}>
+  <Card title="Payment Links" icon="link" href="/concepts/payment-links">
+    Generate a unique payment link and QR code. Payers send USDC directly to your deposit address on Base.
+  </Card>
+  <Card title="Invoicing" icon="file-invoice" href="/concepts/invoices">
+    Create professional PDF invoices with line items, send them by email, and accept USDC payment automatically.
+  </Card>
+  <Card title="Wallet Options" icon="wallet" href="/concepts/wallets">
+    Use your existing USDC wallet or let Kibble provision one for you instantly.
+  </Card>
+  <Card title="Embed Checkout" icon="window" href="/guides/embed-checkout">
+    Embed a hosted checkout page in your site with a single `<iframe>` or JS snippet.
+  </Card>
+</CardGroup>
+
+## Get started in three steps
+
+<Steps>
+  <Step title="Run the CLI">
+    ```bash
+    npx create-kibble
+    ```
+    The interactive CLI walks you through creating your first payment link or invoice.
+  </Step>
+  <Step title="Share your link">
+    Kibble generates a unique payment URL and QR code. Share it with customers — they pay USDC on Base directly to your wallet.
+  </Step>
+  <Step title="Get paid">
+    Payments are detected on-chain in real time. You receive an email confirmation and, if configured, a signed webhook POST to your server.
+  </Step>
+</Steps>

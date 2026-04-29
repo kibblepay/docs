@@ -1,0 +1,127 @@
+---
+title: "Webhooks: receive payment notifications for invoices"
+description: "Kibble POSTs a signed JSON payload to your server the moment an invoice payment is confirmed on-chain. Configure a webhook URL per invoice."
+---
+
+When a payment on one of your invoices is confirmed on Base, Kibble sends an HTTP POST request to a URL you supply. This lets your backend react immediately — updating order records, triggering fulfillment, or sending receipts — without polling the API.
+
+<Note>
+Webhooks are configured per invoice, not at the account level. Each invoice can have its own `webhook_url`.
+</Note>
+
+## How to configure a webhook
+
+Pass a `webhook_url` when you create an invoice. Kibble generates a unique `webhook_secret` for that invoice and returns it in the API response.
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    npx create-kibble --stdin <<'EOF'
+    {
+      "merchant_email": "you@example.com",
+      "merchant_name": "Acme Corp",
+      "merchant_address": "1 Market St, San Francisco, CA",
+      "vendor_email": "vendor@example.com",
+      "vendor_name": "Supplier Ltd",
+      "line_items": [
+        { "description": "Consulting services", "quantity": 1, "unit_price": "2500.00" }
+      ],
+      "due_date": "2026-05-31",
+      "wallet_type": "privy",
+      "webhook_url": "https://yourapp.example.com/webhooks/kibble"
+    }
+    EOF
+    ```
+  </Tab>
+  <Tab title="API">
+    ```bash
+    curl -X POST https://pay.kibble.sh/api/invoices \
+      -H "Content-Type: application/json" \
+      -d '{
+        "merchant_email": "you@example.com",
+        "merchant_name": "Acme Corp",
+        "merchant_address": "1 Market St, San Francisco, CA",
+        "vendor_email": "vendor@example.com",
+        "vendor_name": "Supplier Ltd",
+        "line_items": [
+          { "description": "Consulting services", "quantity": 1, "unit_price": "2500.00" }
+        ],
+        "due_date": "2026-05-31",
+        "wallet_type": "privy",
+        "webhook_url": "https://yourapp.example.com/webhooks/kibble"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+The response includes a `webhook_secret`. Store it securely — you will need it to verify the signature on every incoming request.
+
+```json
+{
+  "invoice_id": "a1b2c3d4-...",
+  "invoice_number": "INV-0001",
+  "slug": "abc12345",
+  "invoice_url": "https://pay.kibble.sh/i/abc12345",
+  "deposit_address": "0xAbCd...",
+  "total_amount": "2500.00",
+  "webhook_secret": "Xk9mLqR3vN8pT2wY..."
+}
+```
+
+<Warning>
+The `webhook_secret` is returned only once, at creation time. It is never exposed again through the API. Treat it like a password.
+</Warning>
+
+## What triggers a webhook
+
+Kibble fires the webhook when on-chain payment activity changes the invoice status. The possible trigger states are:
+
+| Invoice status | Meaning |
+|---|---|
+| `paid` | The exact amount was received |
+| `partial` | A payment was received but it is below the invoice total |
+| `excess` | A payment was received that exceeds the invoice total |
+
+Kibble does not fire a webhook for `draft` or `sent` status changes.
+
+## Webhook payload
+
+The POST body is a JSON object with the following fields:
+
+```json
+{
+  "invoice_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "invoice_number": "INV-0001",
+  "status": "paid",
+  "tx_hash": "0xabc123...",
+  "paid_amount": "2500.0",
+  "paid_at": "2026-04-28T14:23:01.000Z"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `invoice_id` | string | UUID of the invoice |
+| `invoice_number` | string | Human-readable invoice number |
+| `status` | string | New invoice status: `paid`, `partial`, or `excess` |
+| `tx_hash` | string | On-chain transaction hash |
+| `paid_amount` | string | USDC amount received |
+| `paid_at` | string | ISO 8601 timestamp of confirmation |
+
+## Signature header
+
+Every request includes an `X-Kibble-Signature` header. The value is the HMAC-SHA256 digest of the raw request body, prefixed with `sha256=`:
+
+```
+X-Kibble-Signature: sha256=3d5f2a...
+```
+
+Always verify this signature before trusting the payload. See [Webhook verification](/webhooks/verification) for code examples.
+
+## Retry behavior
+
+Kibble makes a single attempt to deliver each webhook. Your endpoint should return a `2xx` response as quickly as possible. If processing takes time, acknowledge the request immediately and handle the work asynchronously.
+
+<Tip>
+Log the raw request body and `X-Kibble-Signature` header during development to make signature debugging easier.
+</Tip>

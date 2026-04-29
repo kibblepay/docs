@@ -1,0 +1,129 @@
+---
+title: "POST /api/links — Create a USDC Payment Link"
+description: "POST /api/links creates a hosted USDC checkout page. Returns a payment link URL, merchant portal, deposit address, and ready-to-use embed snippets."
+---
+
+Calling `POST /api/links` creates a new payment link and returns a hosted checkout URL, a merchant portal URL, and embed snippets. You can either bring your own EVM wallet address (`wallet_type: "byo"`) or let Kibble provision one for you via Privy (`wallet_type: "privy"`).
+
+<Note>
+  When `wallet_type` is `"privy"`, Kibble creates or reuses a Privy embedded wallet tied to the `email` you supply. You do not need to provide a `wallet_address`.
+</Note>
+
+## Request
+
+**`POST https://pay.kibble.sh/api/links`**
+
+### Body parameters
+
+<ParamField body="business_name" type="string" required>
+  Your business or product name. Displayed on the hosted checkout page. Minimum 1 character.
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Contact email for the merchant. Used to look up or provision a Privy wallet when `wallet_type` is `"privy"`.
+</ParamField>
+
+<ParamField body="expected_amount" type="string" required>
+  The USDC amount you expect to receive. Must match the pattern `^\d+(\.\d{1,2})?$` — for example `"49.00"` or `"1500"`. Do not include currency symbols.
+</ParamField>
+
+<ParamField body="wallet_type" type="string" required>
+  How the deposit address is sourced. One of `"byo"` (bring your own) or `"privy"` (Kibble-provisioned).
+</ParamField>
+
+<ParamField body="wallet_address" type="string">
+  A valid EVM checksum address. Required when `wallet_type` is `"byo"`. Ignored when `wallet_type` is `"privy"`.
+</ParamField>
+
+<ParamField body="product_description" type="string">
+  Optional description of the product or service being sold. Displayed on the checkout page.
+</ParamField>
+
+## Response
+
+Returns `200 OK` with the newly created payment link details.
+
+<ResponseField name="slug" type="string" required>
+  An 8-character alphanumeric identifier for the payment link (e.g. `"abc12345"`).
+</ResponseField>
+
+<ResponseField name="payment_link" type="string" required>
+  The hosted checkout URL your customer visits to pay. Example: `https://pay.kibble.sh/pay/abc12345`.
+</ResponseField>
+
+<ResponseField name="merchant_portal" type="string" required>
+  The merchant dashboard URL for this link. Example: `https://pay.kibble.sh/merchant/abc12345`.
+</ResponseField>
+
+<ResponseField name="wallet_address" type="string" required>
+  The EVM deposit address (checksummed) that USDC will be sent to.
+</ResponseField>
+
+<ResponseField name="iframe_snippet" type="string" required>
+  A ready-to-paste `<iframe>` HTML snippet that embeds the checkout at 400×600 pixels.
+</ResponseField>
+
+<ResponseField name="js_widget_snippet" type="string" required>
+  A `<script>` tag that loads the Kibble JavaScript widget and targets this payment link via `data-slug`.
+</ResponseField>
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| `400` | Validation failed — `error` contains a `fieldErrors` object. |
+| `400` | `wallet_type` is `"byo"` but `wallet_address` is missing or not a valid EVM address. |
+| `500` | Privy wallet provisioning failed. |
+| `500` | Unique slug could not be generated after 5 retries. |
+| `500` | Database insert failed. |
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url https://pay.kibble.sh/api/links \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "business_name": "Acme Corp",
+    "email": "billing@acme.com",
+    "expected_amount": "499.00",
+    "wallet_type": "byo",
+    "wallet_address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+    "product_description": "Annual SaaS subscription"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://pay.kibble.sh/api/links', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    business_name: 'Acme Corp',
+    email: 'billing@acme.com',
+    expected_amount: '499.00',
+    wallet_type: 'byo',
+    wallet_address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    product_description: 'Annual SaaS subscription',
+  }),
+});
+
+const data = await response.json();
+console.log(data.payment_link); // https://pay.kibble.sh/pay/abc12345
+```
+
+</CodeGroup>
+
+**Response:**
+
+```json
+{
+  "slug": "abc12345",
+  "payment_link": "https://pay.kibble.sh/pay/abc12345",
+  "merchant_portal": "https://pay.kibble.sh/merchant/abc12345",
+  "wallet_address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "iframe_snippet": "<iframe src=\"https://pay.kibble.sh/pay/abc12345\" width=\"400\" height=\"600\" frameborder=\"0\"></iframe>",
+  "js_widget_snippet": "<script src=\"https://pay.kibble.sh/w.js\" data-slug=\"abc12345\"></script>"
+}
+```

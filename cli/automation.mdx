@@ -1,0 +1,306 @@
+---
+title: "CLI automation: --yes, --stdin, and scripting"
+description: "Run the Kibble CLI without prompts using --yes for env-var-driven links or --stdin for JSON invoice payloads. Covers dry-run validation and all env var options."
+---
+
+The Kibble CLI has two non-interactive modes designed for scripting, CI pipelines, and agent-driven workflows. The `--yes` flag creates a payment link entirely from environment variables and writes JSON to stdout. The `--stdin` flag accepts a JSON invoice payload via stdin and returns a JSON response — no prompts, no browser, no human in the loop.
+
+## `--yes` flag: non-interactive payment links
+
+Pass `--yes` to create a payment link without any prompts. All configuration comes from environment variables. The CLI writes a single JSON object to stdout and exits.
+
+```bash
+KIBBLE_EMAIL=you@example.com \
+KIBBLE_AMOUNT=99.00 \
+npx create-kibble --yes
+```
+
+### Required environment variables
+
+<ParamField path="env.KIBBLE_EMAIL" type="string" required>
+  Your merchant email address. Used for payment confirmation notifications.
+</ParamField>
+
+<ParamField path="env.KIBBLE_AMOUNT" type="string" required>
+  The charge amount in USDC. Must be a positive number with at most two decimal places (e.g. `49.00`, `1000`).
+</ParamField>
+
+### Optional environment variables
+
+<ParamField path="env.KIBBLE_WALLET_TYPE" type="string" default="byo">
+  Wallet type. Accepts `privy` (Kibble-provisioned) or `byo` (bring your own). Defaults to `byo`.
+</ParamField>
+
+<ParamField path="env.KIBBLE_WALLET" type="string">
+  Your Base-compatible EVM wallet address. Required when `KIBBLE_WALLET_TYPE` is `byo` or unset.
+</ParamField>
+
+<ParamField path="env.KIBBLE_BUSINESS_NAME" type="string" default="My Business">
+  Business name that appears on the payment page. Defaults to `"My Business"`.
+</ParamField>
+
+### JSON output
+
+The `--yes` flag prints a single JSON object to stdout. Use `jq` or any JSON parser to extract individual fields.
+
+```json
+{
+  "slug": "my-business-a1b2c3",
+  "paymentLink": "https://pay.kibble.sh/pay/my-business-a1b2c3",
+  "merchantPortal": "https://pay.kibble.sh/merchant/my-business-a1b2c3",
+  "walletAddress": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "iframeSnippet": "<iframe src=\"https://pay.kibble.sh/pay/my-business-a1b2c3\" width=\"480\" height=\"640\" frameborder=\"0\"></iframe>"
+}
+```
+
+### Shell examples
+
+<CodeGroup>
+
+```bash Privy wallet
+KIBBLE_EMAIL=billing@company.example \
+KIBBLE_AMOUNT=500.00 \
+KIBBLE_WALLET_TYPE=privy \
+KIBBLE_BUSINESS_NAME="Acme SaaS" \
+npx create-kibble --yes
+```
+
+```bash BYO wallet
+KIBBLE_EMAIL=billing@company.example \
+KIBBLE_AMOUNT=500.00 \
+KIBBLE_WALLET_TYPE=byo \
+KIBBLE_WALLET=0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 \
+npx create-kibble --yes
+```
+
+```bash Extract payment link with jq
+PAYMENT_LINK=$(
+  KIBBLE_EMAIL=billing@company.example \
+  KIBBLE_AMOUNT=500.00 \
+  KIBBLE_WALLET_TYPE=privy \
+  npx create-kibble --yes | jq -r '.paymentLink'
+)
+echo "Share this link: $PAYMENT_LINK"
+```
+
+</CodeGroup>
+
+---
+
+## `--stdin` flag: programmatic invoice creation
+
+Pipe a JSON invoice payload to stdin to create an invoice without any prompts. The CLI validates the payload, calls the Kibble API, and writes the response JSON to stdout.
+
+```bash
+echo '{ ... }' | npx create-kibble --stdin
+```
+
+### Payload schema
+
+The payload must be valid JSON conforming to the `CreateInvoiceSchema`. All fields below correspond directly to what you'd enter in the interactive flow.
+
+<ParamField body="merchant_email" type="string" required>
+  Your merchant email address.
+</ParamField>
+
+<ParamField body="merchant_name" type="string" required>
+  Your business name. Appears in the invoice header.
+</ParamField>
+
+<ParamField body="merchant_address" type="string" required>
+  Your business address. Appears in the invoice "From" section.
+</ParamField>
+
+<ParamField body="vendor_name" type="string" required>
+  Name of the person or company you're billing.
+</ParamField>
+
+<ParamField body="vendor_email" type="string" required>
+  Email address where the PDF invoice is sent immediately on creation.
+</ParamField>
+
+<ParamField body="vendor_address" type="string">
+  Optional. Vendor address that appears on the invoice.
+</ParamField>
+
+<ParamField body="line_items" type="object[]" required>
+  Array of line items. Minimum 1, maximum 30.
+
+  <Expandable title="line_items properties">
+    <ParamField body="line_items[].description" type="string" required>
+      Description of the product or service.
+    </ParamField>
+    <ParamField body="line_items[].quantity" type="number" required>
+      Positive number representing the quantity.
+    </ParamField>
+    <ParamField body="line_items[].unit_price" type="string" required>
+      Unit price in USDC as a decimal string (e.g. `"500.00"`).
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="due_date" type="string" required>
+  Payment due date in `YYYY-MM-DD` format (e.g. `"2026-06-30"`).
+</ParamField>
+
+<ParamField body="issue_date" type="string">
+  Optional. Invoice issue date in `YYYY-MM-DD` format. Defaults to today if omitted.
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Optional. Free-text notes that appear at the bottom of the invoice.
+</ParamField>
+
+<ParamField body="wallet_type" type="string" required>
+  `privy` for a Kibble-provisioned wallet, or `byo` if you supply your own address.
+</ParamField>
+
+<ParamField body="wallet_address" type="string">
+  Your Base EVM wallet address. Required when `wallet_type` is `byo`.
+</ParamField>
+
+<ParamField body="webhook_url" type="string">
+  Optional. URL that receives a POST request when payment is confirmed on-chain.
+</ParamField>
+
+<ParamField body="send_now" type="boolean">
+  When `true`, the invoice email is sent to the vendor immediately. Defaults to `true`.
+</ParamField>
+
+### Complete example
+
+<CodeGroup>
+
+```bash Single invoice
+cat invoice.json | npx create-kibble --stdin
+```
+
+```bash Inline with heredoc
+npx create-kibble --stdin <<'EOF'
+{
+  "merchant_email": "billing@acme.example.com",
+  "merchant_name": "Acme SaaS",
+  "merchant_address": "742 Evergreen Terrace, Portland, OR 97201",
+  "vendor_name": "Globex Corporation",
+  "vendor_email": "ap@globex.example.com",
+  "vendor_address": "1 Globex Plaza, Cypress Creek, TN 37188",
+  "line_items": [
+    { "description": "Platform license — July 2026", "quantity": 1, "unit_price": "1200.00" },
+    { "description": "Onboarding sessions", "quantity": 4, "unit_price": "250.00" }
+  ],
+  "due_date": "2026-07-31",
+  "notes": "Payment reference: PO-2026-0099",
+  "wallet_type": "privy",
+  "send_now": true
+}
+EOF
+```
+
+```bash Pipeline with jq
+INVOICE_URL=$(
+  cat invoice.json \
+  | npx create-kibble --stdin \
+  | jq -r '.invoice_url'
+)
+echo "Invoice ready: $INVOICE_URL"
+```
+
+</CodeGroup>
+
+### JSON response
+
+```json
+{
+  "invoice_id": "inv_01j9abc123",
+  "invoice_number": "INV-0042",
+  "slug": "acme-saas-inv-0042",
+  "invoice_url": "https://pay.kibble.sh/invoice/acme-saas-inv-0042",
+  "pdf_url": "https://pay.kibble.sh/invoice/acme-saas-inv-0042/pdf",
+  "deposit_address": "0x4a3e...c92f",
+  "total_amount": "2200.00",
+  "sent_at": "2026-06-01T12:34:56.000Z"
+}
+```
+
+---
+
+## `--stdin --dry-run`: validate without sending
+
+Add `--dry-run` alongside `--stdin` to validate your JSON payload without hitting the API. The CLI parses and validates the payload, then echoes the normalized JSON back to stdout without creating an invoice or sending any emails.
+
+```bash
+cat invoice.json | npx create-kibble --stdin --dry-run
+```
+
+This is useful for:
+
+- Testing pipeline JSON generation before deploying to production
+- Catching schema errors in CI before they reach the API
+- Verifying that field values (amounts, dates, emails) pass validation
+
+If the payload is valid, the CLI prints the parsed JSON and exits with code `0`. If the payload is invalid, it prints an error JSON object to stderr and exits with code `1`.
+
+<CodeGroup>
+
+```bash Valid payload
+$ echo '{"merchant_email":"you@example.com","merchant_name":"Acme","merchant_address":"123 Main","vendor_name":"Vendor","vendor_email":"v@vendor.com","line_items":[{"description":"Work","quantity":1,"unit_price":"100.00"}],"due_date":"2026-07-01","wallet_type":"privy"}' \
+  | npx create-kibble --stdin --dry-run
+
+{"merchant_email":"you@example.com","merchant_name":"Acme",...}
+```
+
+```bash Invalid payload (missing required field)
+$ echo '{"merchant_name":"Acme"}' \
+  | npx create-kibble --stdin --dry-run
+
+{"error":"merchant_email: Required; merchant_address: Required; ..."}
+```
+
+</CodeGroup>
+
+---
+
+## `KIBBLE_BASE_URL`: non-production environments
+
+Point the CLI at a different API endpoint by setting `KIBBLE_BASE_URL`. This works with all three modes: interactive, `--yes`, and `--stdin`.
+
+```bash
+KIBBLE_BASE_URL=http://localhost:3000 npx create-kibble
+```
+
+```bash
+KIBBLE_BASE_URL=https://staging.pay.kibble.sh \
+KIBBLE_EMAIL=test@example.com \
+KIBBLE_AMOUNT=1.00 \
+npx create-kibble --yes
+```
+
+<Tip>
+  Use `KIBBLE_BASE_URL` during local development or staging to avoid creating real payment links and sending live emails.
+</Tip>
+
+---
+
+## `DO_NOT_TRACK=1`: disable analytics
+
+The CLI collects anonymous usage data to help improve the product. No personally identifiable information is sent. To opt out entirely:
+
+```bash
+DO_NOT_TRACK=1 npx create-kibble
+```
+
+This works in all modes. EU users are also asked for consent at the start of each interactive session regardless of this setting.
+
+---
+
+## Environment variable reference
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `KIBBLE_EMAIL` | `--yes` only | — | Merchant email address |
+| `KIBBLE_AMOUNT` | `--yes` only | — | Charge amount in USDC |
+| `KIBBLE_WALLET_TYPE` | No | `byo` | `privy` or `byo` |
+| `KIBBLE_WALLET` | If `byo` | — | Base EVM wallet address |
+| `KIBBLE_BUSINESS_NAME` | No | `My Business` | Business name on payment page |
+| `KIBBLE_BASE_URL` | No | `https://pay.kibble.sh` | Override the API base URL |
+| `DO_NOT_TRACK` | No | unset | Set to `1` to disable analytics |

@@ -1,0 +1,162 @@
+---
+title: "GET /api/merchant/{slug} — Merchant Dashboard Data"
+description: "Retrieve aggregated dashboard data for a merchant: all payment links, recent payments, wallet address, and live USDC balance on Base."
+---
+
+`GET /api/merchant/{slug}` returns the full dataset used to render the merchant portal. It includes all payment links belonging to the authenticated merchant, recent payment history across those links, and the merchant's live USDC balance on Base fetched directly from the USDC contract.
+
+<Warning>
+  This endpoint requires a Privy session cookie (`privy-id-token`). It is intended for use by the hosted merchant portal UI. The authenticated email must match the email on the requested slug — you cannot access another merchant's data by guessing slugs.
+</Warning>
+
+## Request
+
+**`GET https://pay.kibble.sh/api/merchant/{slug}`**
+
+Authentication is performed via a `privy-id-token` cookie set by the Privy login flow in the merchant portal. Requests without a valid session are rejected with `401`.
+
+### Path parameters
+
+<ParamField path="slug" type="string" required>
+  The 8-character slug of any payment link belonging to the authenticated merchant. Used to verify ownership.
+</ParamField>
+
+## Response
+
+Returns `200 OK` with the merchant's aggregated dashboard data.
+
+<ResponseField name="email" type="string" required>
+  The authenticated merchant's email address.
+</ResponseField>
+
+<ResponseField name="walletAddress" type="string">
+  The EVM deposit address for the merchant. Sourced from the Privy session wallet or the first payment link record. `null` if no address can be determined.
+</ResponseField>
+
+<ResponseField name="balanceUsdc" type="string" required>
+  Live USDC balance on Base for the merchant's wallet address, as a decimal string (e.g. `"1250.00"`). Returns `"0.00"` if no wallet address is available or if the RPC call fails.
+</ResponseField>
+
+<ResponseField name="links" type="object[]" required>
+  All payment links belonging to this merchant, ordered by creation date descending.
+
+  <Expandable title="link properties">
+    <ResponseField name="id" type="string" required>
+      UUID of the payment link.
+    </ResponseField>
+    <ResponseField name="slug" type="string" required>
+      The 8-character slug for this link.
+    </ResponseField>
+    <ResponseField name="business_name" type="string" required>
+      Business name set on this link.
+    </ResponseField>
+    <ResponseField name="product_description" type="string">
+      Optional product description. `null` if not set.
+    </ResponseField>
+    <ResponseField name="expected_amount" type="string" required>
+      Expected USDC amount as a decimal string.
+    </ResponseField>
+    <ResponseField name="status" type="string" required>
+      Payment status: `"pending"`, `"confirmed"`, `"partial"`, `"excess"`, or `"error"`.
+    </ResponseField>
+    <ResponseField name="deposit_address" type="string" required>
+      The EVM deposit address for this link.
+    </ResponseField>
+    <ResponseField name="wallet_type" type="string" required>
+      Either `"byo"` or `"privy"`.
+    </ResponseField>
+    <ResponseField name="created_at" type="string" required>
+      ISO 8601 timestamp when the link was created.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="payments" type="object[]" required>
+  Up to 50 most recent payments across all of the merchant's links, ordered by confirmation time descending.
+
+  <Expandable title="payment properties">
+    <ResponseField name="id" type="string" required>
+      UUID of the payment record.
+    </ResponseField>
+    <ResponseField name="payment_link_id" type="string" required>
+      UUID of the payment link this payment belongs to.
+    </ResponseField>
+    <ResponseField name="tx_hash" type="string" required>
+      On-chain transaction hash.
+    </ResponseField>
+    <ResponseField name="amount_usdc" type="string" required>
+      USDC amount received in this payment.
+    </ResponseField>
+    <ResponseField name="confirmed_at" type="string" required>
+      ISO 8601 timestamp when the payment was confirmed on-chain.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| `401` | No `privy-id-token` cookie present or token is invalid. |
+| `400` | The authenticated Privy account has no linked email address. |
+| `404` | No payment link found for the given slug under the authenticated merchant's email. |
+| `500` | Failed to fetch payment links from the database. |
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+# The privy-id-token cookie is set by the Privy login flow.
+# Pass it explicitly when testing with cURL.
+curl --request GET \
+  --url https://pay.kibble.sh/api/merchant/abc12345 \
+  --cookie 'privy-id-token=YOUR_TOKEN_HERE'
+```
+
+```javascript JavaScript
+// In a browser context the cookie is sent automatically.
+// In Node.js you must forward the cookie from the user's session.
+const response = await fetch('https://pay.kibble.sh/api/merchant/abc12345', {
+  credentials: 'include', // sends cookies in browser fetch
+});
+const dashboard = await response.json();
+
+console.log(`Balance: ${dashboard.balanceUsdc} USDC`);
+console.log(`Links: ${dashboard.links.length}`);
+console.log(`Payments: ${dashboard.payments.length}`);
+```
+
+</CodeGroup>
+
+**Response:**
+
+```json
+{
+  "email": "billing@acme.com",
+  "walletAddress": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "balanceUsdc": "1250.00",
+  "links": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "slug": "abc12345",
+      "business_name": "Acme Corp",
+      "product_description": "Annual SaaS subscription",
+      "expected_amount": "499.00",
+      "status": "confirmed",
+      "deposit_address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      "wallet_type": "byo",
+      "created_at": "2024-11-01T08:00:00.000Z"
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay_001",
+      "payment_link_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "tx_hash": "0xabc...def",
+      "amount_usdc": "499.00",
+      "confirmed_at": "2024-11-01T14:32:10.000Z"
+    }
+  ]
+}
+```

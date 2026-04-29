@@ -1,0 +1,89 @@
+---
+title: "GET /api/links/{slug} — Get Payment Link Details"
+description: "GET /api/links/{slug} retrieves the public metadata for a payment link: business name, deposit address, expected USDC amount, wallet type, and current status."
+---
+
+`GET /api/links/{slug}` returns the public details for an existing payment link. This endpoint is used by the hosted checkout page to render the payment UI, but you can also call it directly to inspect a link's configuration.
+
+<Note>
+  This endpoint returns only the public data needed to render the checkout page. Internal wallet provisioning details are not included in the response.
+</Note>
+
+## Request
+
+**`GET https://pay.kibble.sh/api/links/{slug}`**
+
+### Path parameters
+
+<ParamField path="slug" type="string" required>
+  The 8-character alphanumeric slug returned when the payment link was created.
+</ParamField>
+
+## Response
+
+Returns `200 OK` with the payment link's public data.
+
+<ResponseField name="business_name" type="string" required>
+  The business name set when the link was created.
+</ResponseField>
+
+<ResponseField name="product_description" type="string">
+  Optional product or service description. `null` if not provided.
+</ResponseField>
+
+<ResponseField name="deposit_address" type="string" required>
+  The EVM address that USDC should be sent to. This is the canonical destination for the payment.
+</ResponseField>
+
+<ResponseField name="wallet_type" type="string" required>
+  Either `"byo"` or `"privy"`, indicating how the deposit address was sourced.
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Current payment status. One of `"pending"`, `"confirmed"`, `"partial"`, `"excess"`, or `"error"`.
+</ResponseField>
+
+<ResponseField name="expected_amount" type="string" required>
+  The requested USDC amount as a decimal string (e.g. `"499.00"`).
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  The merchant email associated with this link.
+</ResponseField>
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| `404` | No payment link found for the given slug. |
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url https://pay.kibble.sh/api/links/abc12345
+```
+
+```javascript JavaScript
+const response = await fetch('https://pay.kibble.sh/api/links/abc12345');
+const data = await response.json();
+console.log(data.status); // "pending"
+```
+
+</CodeGroup>
+
+**Response:**
+
+```json
+{
+  "business_name": "Acme Corp",
+  "product_description": "Annual SaaS subscription",
+  "deposit_address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+  "wallet_type": "byo",
+  "status": "pending",
+  "expected_amount": "499.00",
+  "email": "billing@acme.com"
+}
+```

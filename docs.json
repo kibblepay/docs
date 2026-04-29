@@ -1,0 +1,100 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "luma",
+  "name": "Kibble",
+  "colors": {
+    "primary": "#D4603A",
+    "light": "#F5E8E2",
+    "dark": "#1A0F0A"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/kibblepay/kibble-poc"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Docs",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/payment-links",
+              "concepts/invoices",
+              "concepts/wallets",
+              "concepts/payment-lifecycle"
+            ]
+          },
+          {
+            "group": "CLI",
+            "pages": [
+              "cli/overview",
+              "cli/charge",
+              "cli/invoice",
+              "cli/automation"
+            ]
+          },
+          {
+            "group": "Webhooks",
+            "pages": [
+              "webhooks/overview",
+              "webhooks/verification"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/embed-checkout",
+              "guides/automate-invoicing",
+              "guides/track-payments"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction"
+            ]
+          },
+          {
+            "group": "Payment Links",
+            "pages": [
+              "api-reference/links/create",
+              "api-reference/links/get",
+              "api-reference/links/payment-status"
+            ]
+          },
+          {
+            "group": "Invoices",
+            "pages": [
+              "api-reference/invoices/create",
+              "api-reference/invoices/get",
+              "api-reference/invoices/status",
+              "api-reference/invoices/send",
+              "api-reference/invoices/pdf"
+            ]
+          },
+          {
+            "group": "Merchant",
+            "pages": [
+              "api-reference/merchant/dashboard"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

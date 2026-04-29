@@ -1,0 +1,104 @@
+---
+title: "GET /api/invoices/{id}/status — Invoice Payment Status"
+description: "GET /api/invoices/{id}/status returns lightweight invoice payment state for polling. Returns status, paid_amount, and tx_hash. Supports derived overdue status."
+---
+
+`GET /api/invoices/{id}/status` is a lightweight polling endpoint that returns the current payment state of an invoice along with on-chain payment details when available. The hosted invoice page polls this endpoint every 5 seconds to detect and display payment confirmation in real time.
+
+Unlike `GET /api/invoices/{id}`, this endpoint does not return the full invoice record — it is optimized for frequent polling with a minimal response.
+
+<Note>
+  The `status` field in this response can return `"overdue"` — a derived value that is not stored in the database. It is computed at request time when the due date has passed and the invoice is still `"draft"` or `"sent"`.
+</Note>
+
+## Request
+
+**`GET https://pay.kibble.sh/api/invoices/{id}/status`**
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the invoice.
+</ParamField>
+
+## Response
+
+Returns `200 OK` with the current invoice payment status.
+
+<ResponseField name="status" type="string" required>
+  The current payment state. One of:
+  - `"draft"` — invoice created but not yet sent
+  - `"sent"` — invoice emailed to vendor, awaiting payment
+  - `"overdue"` — due date has passed and invoice is unpaid (derived, not stored)
+  - `"paid"` — full USDC payment received
+  - `"partial"` — USDC received but below the invoice total
+  - `"excess"` — USDC received above the invoice total
+</ResponseField>
+
+<ResponseField name="paid_amount" type="string" required>
+  The total USDC amount received so far, as a decimal string. `"0"` if no payment has been detected.
+</ResponseField>
+
+<ResponseField name="tx_hash" type="string">
+  On-chain transaction hash of the most recent payment. Present only when a payment has been recorded.
+</ResponseField>
+
+<ResponseField name="paid_at" type="string">
+  ISO 8601 timestamp of when the invoice was marked as paid. Present only when status is `"paid"`.
+</ResponseField>
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| `404` | No invoice found for the given ID. |
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url https://pay.kibble.sh/api/invoices/3f8a2c1e-4b9d-4e7f-a012-9c3d5e6f7a8b/status
+```
+
+```javascript JavaScript
+async function pollInvoiceStatus(id) {
+  const response = await fetch(
+    `https://pay.kibble.sh/api/invoices/${id}/status`
+  );
+  const data = await response.json();
+
+  if (data.status === 'paid') {
+    console.log('Invoice paid. TX:', data.tx_hash);
+    return data;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+  return pollInvoiceStatus(id);
+}
+
+pollInvoiceStatus('3f8a2c1e-4b9d-4e7f-a012-9c3d5e6f7a8b');
+```
+
+</CodeGroup>
+
+**Response — awaiting payment:**
+
+```json
+{
+  "status": "sent",
+  "paid_amount": "0"
+}
+```
+
+**Response — payment confirmed:**
+
+```json
+{
+  "status": "paid",
+  "paid_amount": "500.00",
+  "tx_hash": "0xabc...def",
+  "paid_at": "2024-11-15T09:42:00.000Z"
+}
+```

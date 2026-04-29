@@ -1,0 +1,148 @@
+---
+title: "kibble charge: create and share a USDC payment link"
+description: "Walk through every prompt in the kibble charge interactive flow, from amount entry to wallet selection, and see the full terminal output with a working example."
+---
+
+The `kibble charge` flow creates a hosted payment page for a specific USDC amount. After you complete the prompts, Kibble returns a shareable payment URL, a merchant portal link for tracking, your deposit wallet address, and an iframe embed snippet you can drop into any web page. The CLI opens the payment link in your browser automatically.
+
+## Prerequisites
+
+Make sure you have Node 18 or later installed, then run:
+
+```bash
+npx create-kibble
+```
+
+Select **kibble charge** from the action menu after entering your business name and email.
+
+## Interactive walkthrough
+
+<Steps>
+  <Step title="Enter the charge amount">
+    Enter the amount in USDC. The value must be positive and have at most two decimal places.
+
+    ```
+    ◆  How much do you want to charge? (USDC)
+    │  49.00
+    ```
+
+    <Note>
+      Whole numbers like `100` and fractional amounts like `49.99` are both valid. Three or more decimal places (e.g. `9.999`) are rejected.
+    </Note>
+  </Step>
+
+  <Step title="Choose a wallet">
+    Select where incoming USDC should land.
+
+    ```
+    ◆  Where should payments land?
+    │  ● Create a wallet for me  (recommended — Kibble provisions it)
+    │  ○ Use my existing USDC address on Base
+    ```
+
+    | Option | When to use |
+    |---|---|
+    | **Privy** (recommended) | Kibble provisions a non-custodial wallet for you instantly. No setup required. |
+    | **BYO (bring your own)** | Use an existing EVM wallet address on the Base network. |
+
+    If you choose **BYO**, you'll be prompted for the address next.
+  </Step>
+
+  <Step title="Enter your wallet address (BYO only)">
+    Paste your Base-compatible EVM wallet address. The CLI validates the format before proceeding.
+
+    ```
+    ◆  Your USDC wallet address on Base
+    │  0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+    ```
+
+    <Warning>
+      Only EVM addresses on the **Base** network are supported. Addresses on other chains will not receive USDC through Kibble payment links.
+    </Warning>
+  </Step>
+
+  <Step title="Add a product description (optional)">
+    Describe what you're charging for. This appears on the hosted payment page. Press Enter to skip.
+
+    ```
+    ◆  What are you charging for? (optional)
+    │  Monthly SaaS subscription — Pro plan
+    ```
+  </Step>
+
+  <Step title="Payment link created">
+    Kibble creates the link and prints your results. The browser opens the payment URL automatically.
+
+    ```
+    ◆  Payment link created!
+
+    You're live.
+
+    https://pay.kibble.sh/pay/abc123xyz
+
+    Merchant portal:  https://pay.kibble.sh/merchant/abc123xyz
+    Wallet:           0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+    Embed snippet:    <iframe src="https://pay.kibble.sh/pay/abc123xyz" ...></iframe>
+
+    Opening in your browser…
+    ```
+  </Step>
+</Steps>
+
+## Output reference
+
+After the flow completes, the CLI prints four values:
+
+| Output | Description |
+|---|---|
+| **Payment link** | The hosted payment page URL. Share this with your customer. |
+| **Merchant portal** | A private URL where you can view payment status and history. |
+| **Wallet address** | The Base wallet address that will receive USDC. |
+| **Embed snippet** | An `<iframe>` tag you can paste into your website to embed the payment page. |
+
+## Complete example session
+
+This shows a full `kibble charge` session from start to finish using a Privy (Kibble-provisioned) wallet.
+
+```
+  ██╗  ██╗██╗██████╗ ██████╗ ██╗     ███████╗
+  ██║ ██╔╝██║██╔══██╗██╔══██╗██║     ██╔════╝
+  █████╔╝ ██║██████╔╝██████╔╝██║     █████╗
+  ██╔═██╗ ██║██╔══██╗██╔══██╗██║     ██╔══╝
+  ██║  ██╗██║██████╔╝██████╔╝███████╗███████╗
+  ╚═╝  ╚═╝╚═╝╚═════╝ ╚═════╝ ╚══════╝╚══════╝
+
+  The bank in your terminal.
+  Banking, payments, invoicing, and agent cards — one API key.
+
+◆  What's your business name?
+│  Acme SaaS
+◆  What's your email?
+│  founders@acmesaas.io
+◆  What do you want to do?
+│  kibble charge
+◆  How much do you want to charge? (USDC)
+│  250.00
+◆  Where should payments land?
+│  Create a wallet for me (recommended — Kibble provisions it)
+◆  What are you charging for? (optional)
+│  Q2 retainer — design sprint
+
+◆  Payment link created!
+
+You're live.
+
+https://pay.kibble.sh/pay/retainer-q2-8f3k
+
+Merchant portal:  https://pay.kibble.sh/merchant/retainer-q2-8f3k
+Wallet:           0x4a3e...c92f
+Embed snippet:    <iframe src="https://pay.kibble.sh/pay/retainer-q2-8f3k" width="480" height="640" frameborder="0"></iframe>
+
+Opening in your browser…
+```
+
+## Next steps
+
+- To automate payment link creation without prompts, use the [`--yes` flag](/cli/automation).
+- To embed the payment page in your site, copy the iframe snippet and paste it into your HTML.
+- To track payment status, visit the merchant portal URL printed in the output.

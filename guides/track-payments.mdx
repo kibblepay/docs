@@ -1,0 +1,144 @@
+---
+title: "Track USDC payment status for links and invoices"
+description: "Monitor USDC payment activity using the merchant portal, the status polling API, or webhooks — choose the approach that fits your integration."
+---
+
+Kibble gives you three ways to track whether a payment link or invoice has been paid. You can check the merchant portal for a visual overview, poll the status API from your own code, or configure a webhook to receive a push notification the moment a payment is confirmed on-chain.
+
+## Payment and invoice statuses
+
+Before diving into each method, here is what each status value means:
+
+### Payment statuses
+
+| Status | Meaning |
+|---|---|
+| `pending` | No payment received yet |
+| `confirmed` | Exact amount received and confirmed on Base |
+| `partial` | A payment arrived but it is below the expected amount |
+| `excess` | A payment arrived that exceeds the expected amount |
+
+### Invoice statuses
+
+| Status | Meaning |
+|---|---|
+| `draft` | Invoice created but not yet sent to the vendor |
+| `sent` | Invoice emailed to the vendor, awaiting payment |
+| `paid` | Full payment received (maps to `confirmed` payment) |
+| `partial` | Partial payment received |
+| `excess` | Overpayment received |
+
+<Note>
+`GET /api/invoices/{id}/status` also returns `overdue` as a derived status when the invoice is in `draft` or `sent` state and the due date has passed.
+</Note>
+
+## Option 1: merchant portal
+
+The merchant portal gives you a real-time visual view of your payment links. Access it at:
+
+```
+https://pay.kibble.sh/merchant/{slug}
+```
+
+Replace `{slug}` with the slug returned when you created the payment link. The portal is available for payment links created with the `privy` wallet type and shows the current payment status, received amount, and transaction details.
+
+## Option 2: status polling API
+
+Poll the status endpoints directly from your application. Both endpoints return lightweight JSON responses with no authentication required.
+
+### Payment link status
+
+```bash
+GET /api/payments/status/{slug}
+```
+
+```bash
+curl https://pay.kibble.sh/api/payments/status/abc12345
+```
+
+Example response when paid:
+
+```json
+{
+  "status": "confirmed",
+  "tx_hash": "0xabc123...",
+  "amount_usdc": "150.00",
+  "confirmed_at": "2026-04-28T14:23:01.000Z"
+}
+```
+
+Example response when still pending:
+
+```json
+{
+  "status": "pending"
+}
+```
+
+### Invoice status
+
+```bash
+GET /api/invoices/{id}/status
+```
+
+```bash
+curl https://pay.kibble.sh/api/invoices/a1b2c3d4-e5f6-7890-abcd-ef1234567890/status
+```
+
+Example response:
+
+```json
+{
+  "status": "paid",
+  "paid_amount": "2500.0",
+  "tx_hash": "0xdef456...",
+  "paid_at": "2026-04-28T15:00:00.000Z"
+}
+```
+
+### Polling from your application
+
+A simple polling loop in JavaScript:
+
+```typescript
+async function waitForPayment(slug: string, intervalMs = 5000): Promise<void> {
+  while (true) {
+    const res = await fetch(`https://pay.kibble.sh/api/payments/status/${slug}`);
+    const data = await res.json();
+
+    if (data.status === "confirmed" || data.status === "excess") {
+      console.log("Payment confirmed:", data.tx_hash);
+      break;
+    }
+    if (data.status === "partial") {
+      console.warn("Partial payment received:", data.amount_usdc);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+```
+
+<Tip>
+The hosted checkout and invoice pages poll `GET /api/payments/status/{slug}` automatically every five seconds. You only need to implement your own polling if you are tracking payments server-side or in a custom UI.
+</Tip>
+
+## Option 3: webhooks
+
+Webhooks are the most efficient way to track payments if you have a server that can receive HTTP requests. Instead of polling, Kibble POSTs to your endpoint the moment an invoice payment is confirmed — no repeated API calls needed.
+
+Configure a webhook by passing `webhook_url` when you create an invoice. See [Webhooks overview](/webhooks/overview) for setup instructions and [Webhook verification](/webhooks/verification) to learn how to validate incoming requests.
+
+## Choosing the right approach
+
+| Approach | Best for |
+|---|---|
+| Merchant portal | Manual monitoring, quick spot checks |
+| Status polling | Custom checkout UIs, frontend status displays |
+| Webhooks | Server-side automation, fulfillment triggers, database updates |
+
+You can combine all three — for example, use a webhook for server-side processing and display polling-based status updates in your checkout UI.
+
+<Note>
+Only USDC on Base (chain ID 8453) triggers a status change. Transfers of other tokens to the deposit address are silently ignored and will not change the payment or invoice status.
+</Note>

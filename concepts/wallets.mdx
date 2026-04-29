@@ -1,0 +1,73 @@
+---
+title: "Wallet types: Kibble-provisioned vs. bring your own address"
+description: "Choose between a Privy-managed embedded wallet tied to your email or a USDC address you already control. Only USDC on Base is accepted either way."
+---
+
+Every payment link and invoice in Kibble requires a deposit address — the on-chain address where USDC lands when a payer sends funds. You choose between two wallet types at the time you create a charge or invoice: `privy` (Kibble provisions it) or `byo` (you bring your own). Both types accept only USDC on Base.
+
+## Wallet types
+
+<CardGroup cols={2}>
+  <Card title="privy — recommended" icon="sparkles">
+    Kibble provisions an embedded wallet tied to your merchant email. No crypto wallet app required. The same address is reused every time you create a charge or invoice with the same email.
+  </Card>
+  <Card title="byo — bring your own" icon="wallet">
+    You provide an existing USDC wallet address on Base. Must be a valid EVM address starting with `0x`. Use this if you already manage your own wallet (e.g. Coinbase Wallet, MetaMask, a smart contract treasury).
+  </Card>
+</CardGroup>
+
+## Privy wallets
+
+When you choose `privy`, Kibble looks up your email in Privy's system:
+
+1. If you already have a Privy account with a wallet, Kibble reuses that wallet address.
+2. If you have a Privy account but no wallet yet, Kibble creates one for you.
+3. If you have no Privy account, Kibble creates both the account and the wallet.
+
+The result is the same in all three cases: a stable, reusable deposit address tied to your email. You do not need to install a wallet app, remember a seed phrase, or interact with any blockchain directly. Kibble handles the infrastructure.
+
+<Tip>
+If you plan to create many payment links or invoices with the same email, `privy` is the simplest choice. All payments land at the same address, making reconciliation straightforward.
+</Tip>
+
+## BYO wallets
+
+When you choose `byo`, you provide your own USDC wallet address on Base. The address must:
+
+- Start with `0x`
+- Be a valid EVM address (checksummed or lowercase)
+- Be an address you control on the **Base** network (chain ID `8453`)
+
+```
+Your USDC wallet address on Base: 0xAbCd...1234
+```
+
+<Warning>
+Kibble validates that the address is a well-formed EVM address, but it cannot verify that you actually control the address. If you enter an address you do not own, any payments sent to that address will not be retrievable. Double-check the address before creating a charge.
+</Warning>
+
+## Accepted token
+
+Regardless of wallet type, Kibble only accepts USDC on Base.
+
+| Property | Value |
+|---|---|
+| Token | USDC |
+| Network | Base |
+| Chain ID | `8453` |
+| Contract address | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+
+Transfers of any other token — including ETH, other stablecoins, or USDC on a different chain such as Ethereum mainnet — are not detected and will not update the payment status.
+
+## Which type should you choose?
+
+| | privy | byo |
+|---|---|---|
+| Requires a crypto wallet app | No | Yes |
+| Requires a seed phrase | No | Yes |
+| Address reused across charges | Yes (same email) | Depends on your wallet |
+| Works for a team / treasury | No (email-scoped) | Yes |
+| Good for quick setup | Yes | No |
+| Good for on-chain accounting | No | Yes |
+
+Choose `privy` if you are setting up quickly and do not already have a crypto wallet. Choose `byo` if you manage a treasury wallet, want funds going directly into a multisig, or need on-chain accounting across multiple tools.

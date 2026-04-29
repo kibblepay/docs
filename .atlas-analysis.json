@@ -1,0 +1,118 @@
+{
+  "projectType": "saas",
+  "projectName": "Kibble",
+  "projectDescription": "Kibble is a crypto-native business banking platform that lets global founders accept USDC payments, send invoices, and track receivables — all from a CLI or API.",
+  "theme": "luma",
+  "primaryColor": "#D4603A",
+  "lightColor": "#F5E8E2",
+  "darkColor": "#1A0F0A",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Docs",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/payment-links",
+              "concepts/invoices",
+              "concepts/wallets",
+              "concepts/payment-lifecycle"
+            ]
+          },
+          {
+            "group": "CLI",
+            "pages": [
+              "cli/overview",
+              "cli/charge",
+              "cli/invoice",
+              "cli/automation"
+            ]
+          },
+          {
+            "group": "Webhooks",
+            "pages": [
+              "webhooks/overview",
+              "webhooks/verification"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/embed-checkout",
+              "guides/automate-invoicing",
+              "guides/track-payments"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction"
+            ]
+          },
+          {
+            "group": "Payment Links",
+            "pages": [
+              "api-reference/links/create",
+              "api-reference/links/get",
+              "api-reference/links/payment-status"
+            ]
+          },
+          {
+            "group": "Invoices",
+            "pages": [
+              "api-reference/invoices/create",
+              "api-reference/invoices/get",
+              "api-reference/invoices/status",
+              "api-reference/invoices/send",
+              "api-reference/invoices/pdf"
+            ]
+          },
+          {
+            "group": "Merchant",
+            "pages": [
+              "api-reference/merchant/dashboard"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Instant USDC payment links via CLI or API",
+    "PDF invoice generation with email delivery",
+    "Real-time on-chain payment detection (Alchemy webhooks)",
+    "Kibble-provisioned or bring-your-own wallet support",
+    "Embeddable checkout iframe and JS widget",
+    "Merchant portal with payment tracking",
+    "Signed webhook notifications for payment events",
+    "Non-interactive CLI modes for automation and agent pipelines"
+  ],
+  "publicApiSurface": [
+    "POST /api/links — create a payment link",
+    "GET /api/links/[slug] — get payment link details",
+    "GET /api/payments/status/[slug] — poll payment status",
+    "GET /api/merchant/[slug] — merchant dashboard data",
+    "POST /api/invoices — create invoice with line items",
+    "GET /api/invoices/[id] — full invoice JSON",
+    "GET /api/invoices/[id]/status — lightweight status check",
+    "POST /api/invoices/[id]/send — re-send vendor email",
+    "GET /api/invoices/[id]/pdf — stream invoice PDF",
+    "npx create-kibble — interactive CLI",
+    "create-kibble --yes — non-interactive payment link from env vars",
+    "create-kibble --stdin — pipe JSON invoice payload",
+    "create-kibble --stdin --dry-run — validate without hitting API"
+  ]
+}

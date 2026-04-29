@@ -1,0 +1,101 @@
+---
+title: "GET /api/payments/status/{slug} — Payment Link Status"
+description: "Poll the real-time USDC payment status for a payment link, including transaction hash and confirmed amount when a payment is detected."
+---
+
+`GET /api/payments/status/{slug}` returns the current payment status for a link, along with on-chain details when a payment has been confirmed. The hosted checkout page polls this endpoint every 5 seconds to detect payment and update the UI in real time.
+
+<Note>
+  This endpoint always responds with `Cache-Control: no-store` to ensure you always receive the latest on-chain state.
+</Note>
+
+## Request
+
+**`GET https://pay.kibble.sh/api/payments/status/{slug}`**
+
+### Path parameters
+
+<ParamField path="slug" type="string" required>
+  The 8-character alphanumeric slug of the payment link to check.
+</ParamField>
+
+## Response
+
+Returns `200 OK` with the current payment status. On-chain fields (`tx_hash`, `amount_usdc`, `confirmed_at`) are only present when a payment event has been recorded.
+
+<ResponseField name="status" type="string" required>
+  The current payment state. One of:
+  - `"pending"` — no payment detected yet
+  - `"confirmed"` — full payment received
+  - `"partial"` — payment received but below the expected amount
+  - `"excess"` — payment received above the expected amount
+  - `"error"` — an error occurred during payment processing
+</ResponseField>
+
+<ResponseField name="tx_hash" type="string">
+  The on-chain transaction hash of the most recent payment. Present only after a payment is detected.
+</ResponseField>
+
+<ResponseField name="amount_usdc" type="string">
+  The USDC amount received in the most recent payment, as a decimal string. Present only after a payment is detected.
+</ResponseField>
+
+<ResponseField name="confirmed_at" type="string">
+  ISO 8601 timestamp of when the payment was confirmed on-chain. Present only after a payment is detected.
+</ResponseField>
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| `404` | No payment link found for the given slug. |
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl --request GET \
+  --url https://pay.kibble.sh/api/payments/status/abc12345
+```
+
+```javascript JavaScript
+// Poll every 5 seconds until confirmed
+async function pollStatus(slug) {
+  const response = await fetch(
+    `https://pay.kibble.sh/api/payments/status/${slug}`
+  );
+  const data = await response.json();
+
+  if (data.status === 'confirmed') {
+    console.log('Payment confirmed:', data.tx_hash);
+    return data;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+  return pollStatus(slug);
+}
+
+pollStatus('abc12345');
+```
+
+</CodeGroup>
+
+**Response — payment pending:**
+
+```json
+{
+  "status": "pending"
+}
+```
+
+**Response — payment confirmed:**
+
+```json
+{
+  "status": "confirmed",
+  "tx_hash": "0xabc...def",
+  "amount_usdc": "499.00",
+  "confirmed_at": "2024-11-01T14:32:10.000Z"
+}
+```

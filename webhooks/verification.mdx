@@ -1,0 +1,153 @@
+---
+title: "Verify incoming webhook signatures from Kibble"
+description: "Verify Kibble webhook signatures with HMAC-SHA256. Node.js and Python examples using constant-time comparison and correct raw body access."
+---
+
+Every webhook POST that Kibble sends includes an `X-Kibble-Signature` header. The value is an HMAC-SHA256 digest of the raw request body, computed using the `webhook_secret` that was returned when you created the invoice. Verifying this signature ensures the request came from Kibble and that the payload was not tampered with in transit.
+
+<Warning>
+Always verify the signature before reading or acting on webhook data. Skipping verification makes your endpoint vulnerable to spoofed requests from any party that knows your URL.
+</Warning>
+
+## How verification works
+
+1. Read the raw bytes of the incoming request body — before any JSON parsing.
+2. Compute `HMAC-SHA256(raw_body, webhook_secret)` and encode the result as a lowercase hex string.
+3. Prepend `sha256=` to form the expected signature.
+4. Compare it to the value in the `X-Kibble-Signature` header using a constant-time comparison.
+
+If the two values match, the request is authentic. If they differ, reject it with a `401`.
+
+## Code examples
+
+<CodeGroup>
+
+```typescript webhook-handler.ts
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+function verifyKibbleSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  webhookSecret: string
+): boolean {
+  if (!signatureHeader) return false;
+
+  const expected = `sha256=${createHmac("sha256", webhookSecret)
+    .update(rawBody)
+    .digest("hex")}`;
+
+  // Use constant-time comparison to prevent timing attacks
+  try {
+    return timingSafeEqual(
+      Buffer.from(signatureHeader),
+      Buffer.from(expected)
+    );
+  } catch {
+    // Lengths differ — signatures do not match
+    return false;
+  }
+}
+
+// Express.js example — use express.raw() middleware to get the raw body
+export async function handleKibbleWebhook(req: Request, res: Response) {
+  const rawBody = req.body.toString("utf8");
+  const signature = req.headers["x-kibble-signature"] as string | undefined ?? null;
+  const secret = process.env.KIBBLE_WEBHOOK_SECRET!;
+
+  if (!verifyKibbleSignature(rawBody, signature, secret)) {
+    return res.status(401).json({ error: "Invalid signature" });
+  }
+
+  const payload = JSON.parse(rawBody);
+  console.log("Payment confirmed:", payload.invoice_number, payload.status);
+
+  return res.status(200).json({ received: true });
+}
+```
+
+```python webhook_handler.py
+import hashlib
+import hmac
+import json
+import os
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+def verify_kibble_signature(raw_body: bytes, signature_header: str | None, secret: str) -> bool:
+    if not signature_header:
+        return False
+
+    expected = "sha256=" + hmac.new(
+        secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+
+    # Use constant-time comparison to prevent timing attacks
+    return hmac.compare_digest(signature_header, expected)
+
+
+@app.route("/webhooks/kibble", methods=["POST"])
+def kibble_webhook():
+    raw_body = request.get_data()  # raw bytes, before any parsing
+    signature = request.headers.get("X-Kibble-Signature")
+    secret = os.environ["KIBBLE_WEBHOOK_SECRET"]
+
+    if not verify_kibble_signature(raw_body, signature, secret):
+        return jsonify({"error": "Invalid signature"}), 401
+
+    payload = json.loads(raw_body)
+    print(f"Payment confirmed: {payload['invoice_number']} — {payload['status']}")
+
+    return jsonify({"received": True}), 200
+```
+
+</CodeGroup>
+
+## Storing the secret
+
+Store the `webhook_secret` as an environment variable alongside your other credentials. Never hard-code it in source files or commit it to version control.
+
+```bash
+# .env (server-side only — never expose to the browser)
+KIBBLE_WEBHOOK_SECRET=Xk9mLqR3vN8pT2wY...
+```
+
+If you create multiple invoices with webhooks, each invoice has its own `webhook_secret`. Store them mapped to their `invoice_id` — for example, in your database next to the invoice record — so you can look up the correct secret when a webhook arrives.
+
+## Reading the raw body
+
+Most web frameworks parse the request body automatically, which loses the original bytes needed for verification. You must access the **raw, unparsed body** to compute the correct digest.
+
+<Tabs>
+  <Tab title="Next.js (App Router)">
+    ```typescript
+    // app/api/webhooks/kibble/route.ts
+    export async function POST(req: Request) {
+      const rawBody = await req.text(); // raw string, not parsed JSON
+      // pass rawBody to verifyKibbleSignature(...)
+    }
+    ```
+  </Tab>
+  <Tab title="Express">
+    ```typescript
+    // Register express.raw() before your router
+    app.use("/webhooks/kibble", express.raw({ type: "application/json" }));
+    ```
+  </Tab>
+  <Tab title="Fastify">
+    ```typescript
+    // Fastify exposes req.rawBody when addContentTypeParser is used
+    fastify.addContentTypeParser(
+      "application/json",
+      { parseAs: "buffer" },
+      (_req, body, done) => done(null, body)
+    );
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+If your signature comparison fails unexpectedly, confirm you are reading the raw body as a string (UTF-8). JSON re-serialization changes whitespace and key ordering, producing a different digest.
+</Note>

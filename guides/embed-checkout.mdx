@@ -1,0 +1,116 @@
+---
+title: "Embed a Kibble USDC checkout page in your website"
+description: "Add a hosted USDC payment page to any site with a single iframe or JavaScript snippet — no backend code required after the initial link creation."
+---
+
+Kibble hosts a ready-to-use checkout page for every payment link you create. You can embed that page directly in your site using either an `<iframe>` or a lightweight JavaScript widget. Both options handle wallet display, QR code generation, and real-time payment status updates automatically.
+
+## Before you begin
+
+You need a payment link `slug` before embedding. Create one through the CLI or the API.
+
+## Step 1: create a payment link
+
+<Tabs>
+  <Tab title="CLI">
+    Run the interactive CLI and follow the prompts to create a charge:
+
+    ```bash
+    npx create-kibble
+    ```
+
+    Or use the non-interactive `--yes` mode to create a link from env vars and capture the embed snippet from the JSON output:
+
+    ```bash
+    KIBBLE_EMAIL="you@example.com" \
+    KIBBLE_AMOUNT="150.00" \
+    KIBBLE_WALLET_TYPE="privy" \
+    KIBBLE_BUSINESS_NAME="Acme Corp" \
+    npx create-kibble --yes
+    ```
+  </Tab>
+  <Tab title="API">
+    ```bash
+    curl -X POST https://pay.kibble.sh/api/links \
+      -H "Content-Type: application/json" \
+      -d '{
+        "business_name": "Acme Corp",
+        "email": "you@example.com",
+        "expected_amount": "150.00",
+        "wallet_type": "privy",
+        "product_description": "Annual subscription"
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+## Step 2: copy the embed snippet
+
+The API response includes both embed formats ready to use:
+
+```json
+{
+  "slug": "abc12345",
+  "payment_link": "https://pay.kibble.sh/pay/abc12345",
+  "merchant_portal": "https://pay.kibble.sh/merchant/abc12345",
+  "wallet_address": "0xAbCd...",
+  "iframe_snippet": "<iframe src=\"https://pay.kibble.sh/pay/abc12345\" width=\"400\" height=\"600\" frameborder=\"0\"></iframe>",
+  "js_widget_snippet": "<script src=\"https://pay.kibble.sh/w.js\" data-slug=\"abc12345\"></script>"
+}
+```
+
+## Step 3: embed in your HTML
+
+Choose the format that fits your site.
+
+### iframe
+
+Drop the `iframe_snippet` directly into your HTML. The recommended size is 400×600 px.
+
+```html
+<iframe
+  src="https://pay.kibble.sh/pay/abc12345"
+  width="400"
+  height="600"
+  frameborder="0">
+</iframe>
+```
+
+<Tip>
+Use the iframe for static sites, CMS pages, or any context where you cannot load external scripts. The iframe is fully self-contained.
+</Tip>
+
+### JavaScript widget
+
+Add the `js_widget_snippet` to your page. The script mounts the checkout inline where you place it.
+
+```html
+<script
+  src="https://pay.kibble.sh/w.js"
+  data-slug="abc12345">
+</script>
+```
+
+<Tip>
+Use the JS widget for dynamic applications where you need the widget to mount into a specific container or respond to JavaScript events.
+</Tip>
+
+## How the checkout works
+
+The hosted checkout page polls `GET /api/payments/status/{slug}` every five seconds. When a USDC payment on Base is confirmed, the page updates automatically — no reload required.
+
+<Note>
+Only USDC on Base (chain ID 8453) is accepted. The checkout displays the correct network and contract address to the payer. Transfers of any other token are silently ignored.
+</Note>
+
+## Choosing between iframe and JS widget
+
+| | iframe | JS widget |
+|---|---|---|
+| Works without JavaScript | Yes | No |
+| Static HTML sites | Best choice | Works if JS loads |
+| React / Next.js / Vue | Works | Works |
+| Custom mount target | No | Yes |
+| Isolation from page styles | Yes (sandboxed) | No |
+
+Both embed formats point to the same hosted checkout page and share identical functionality.

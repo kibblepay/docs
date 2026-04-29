@@ -1,0 +1,190 @@
+---
+title: "Invoices: PDF billing documents with USDC payment via email"
+description: "Create itemized invoices with line items and a due date. Kibble generates a PDF, emails it to your vendor, and updates the status when USDC arrives on Base."
+---
+
+An invoice in Kibble is a formal billing document with line items, a due date, and a unique invoice number. When you create one, Kibble generates a PDF, emails it to your vendor, and provisions a deposit address to receive payment. Once your vendor sends USDC on Base, Kibble updates the invoice status and sends you a payment confirmation email. If you configure a webhook URL, Kibble also POSTs a signed payload to your server.
+
+## Invoice number format
+
+Invoice numbers follow the format `INV-XXXX` where `XXXX` is a zero-padded counter that increments per merchant. Your first invoice is `INV-0001`, the second is `INV-0002`, and so on. The counter is tied to your merchant email, so it persists across CLI sessions and API calls.
+
+## Creating an invoice
+
+<Tabs>
+  <Tab title="CLI (interactive)">
+    Run `npx create-kibble` and select **kibble invoice** when prompted. The CLI walks you through each field in sequence.
+
+    ```
+    ◆  What do you want to do?
+    ○  kibble charge   accept payments, generate links, track receivables
+    ●  kibble invoice  create, send, and track invoices
+    ```
+
+    You will be asked for your business address, the vendor's name and email, line items, a due date, and where payments should land.
+  </Tab>
+  <Tab title="CLI (--stdin)">
+    Pipe a JSON payload to the CLI for fully non-interactive invoice creation:
+
+    ```bash
+    echo '{
+      "merchant_email": "you@example.com",
+      "merchant_name": "Acme SaaS",
+      "merchant_address": "123 Main St, San Francisco, CA",
+      "vendor_email": "vendor@example.com",
+      "vendor_name": "Vendor Co",
+      "line_items": [
+        { "description": "Consulting", "quantity": 10, "unit_price": "150.00" }
+      ],
+      "due_date": "2026-06-01",
+      "wallet_type": "privy"
+    }' | npx create-kibble --stdin
+    ```
+
+    Add `--dry-run` to validate the payload without hitting the API:
+
+    ```bash
+    echo '{...}' | npx create-kibble --stdin --dry-run
+    ```
+  </Tab>
+  <Tab title="REST API">
+    ```bash
+    curl -X POST https://pay.kibble.sh/api/invoices \
+      -H "Content-Type: application/json" \
+      -d '{
+        "merchant_email": "you@example.com",
+        "merchant_name": "Acme SaaS",
+        "merchant_address": "123 Main St, San Francisco, CA",
+        "vendor_email": "vendor@example.com",
+        "vendor_name": "Vendor Co",
+        "line_items": [
+          { "description": "Consulting", "quantity": 10, "unit_price": "150.00" },
+          { "description": "Expenses", "quantity": 1, "unit_price": "50.00" }
+        ],
+        "due_date": "2026-06-01",
+        "wallet_type": "privy",
+        "webhook_url": "https://your-server.example.com/kibble-webhook"
+      }'
+    ```
+
+    Successful response (`201 Created`):
+
+    ```json
+    {
+      "invoice_id": "a1b2c3d4-...",
+      "invoice_number": "INV-0001",
+      "slug": "xy7z9abc",
+      "invoice_url": "https://pay.kibble.sh/i/xy7z9abc",
+      "pdf_url": "https://pay.kibble.sh/api/invoices/a1b2c3d4-.../pdf",
+      "deposit_address": "0xAbCd...1234",
+      "total_amount": "1550.00",
+      "sent_at": null,
+      "webhook_secret": "AbCdEfGh..."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Invoice fields
+
+### Merchant fields
+
+These fields identify you as the billing party and appear on the PDF.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `merchant_email` | string | Yes | Your email. Used to look up or create your merchant record. |
+| `merchant_name` | string | Yes | Your business name as it appears on the invoice. |
+| `merchant_address` | string | Yes | Your business address. |
+
+### Vendor fields
+
+These fields identify the party being billed.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `vendor_email` | string | Yes | Where the invoice email is sent. |
+| `vendor_name` | string | Yes | Vendor or customer name on the PDF. |
+| `vendor_address` | string | No | Vendor address. Optional. |
+
+### Line items
+
+Each line item has three fields. You can include between 1 and 30 line items per invoice.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `description` | string | Yes | What the line item is for. |
+| `quantity` | number | Yes | Positive number (e.g. `10` for 10 hours). |
+| `unit_price` | string | Yes | USDC amount per unit (e.g. `"150.00"`). |
+
+The total for each line is `quantity × unit_price`. Kibble sums all line totals to produce the `total_amount`.
+
+### Dates and metadata
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `due_date` | string | Yes | ISO date `YYYY-MM-DD`. |
+| `issue_date` | string | No | ISO date `YYYY-MM-DD`. Defaults to today. |
+| `notes` | string | No | Free-text note printed at the bottom of the PDF. |
+
+### Payment and automation
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `wallet_type` | string | Yes | `privy` or `byo`. |
+| `wallet_address` | string | If `byo` | Your USDC wallet address on Base. |
+| `webhook_url` | string | No | URL to receive a signed POST when the invoice is paid. |
+| `send_now` | boolean | No | Send the invoice email immediately. Defaults to `true`. |
+
+## Downloading the PDF
+
+The PDF is available at:
+
+```
+GET https://pay.kibble.sh/api/invoices/{invoice_id}/pdf
+```
+
+The `invoice_id` is returned when you create the invoice. The PDF is also attached to the email sent to your vendor.
+
+## Invoice statuses
+
+Invoices move through a separate status lifecycle from payment links.
+
+| Status | Meaning |
+|---|---|
+| `draft` | Invoice created but not yet emailed to the vendor. |
+| `sent` | Invoice emailed to the vendor. Awaiting payment. |
+| `paid` | Received amount exactly matches the invoice total. |
+| `partial` | Received amount is less than the invoice total. |
+| `excess` | Received amount exceeds the invoice total. |
+
+<Note>
+An invoice moves from `draft` to `sent` automatically when you create it with `send_now: true` (the default). If you create with `send_now: false`, the invoice sits in `draft` until you trigger sending via the API.
+</Note>
+
+## Immutable fields
+
+Invoice records are append-only for audit purposes. The following fields never change after creation, even if you update your merchant profile:
+
+- `merchant_name_snapshot`
+- `merchant_address_snapshot`
+- `invoice_number`
+
+This ensures that a printed or downloaded PDF always matches the database record.
+
+## Webhooks
+
+If you pass a `webhook_url`, Kibble POSTs a signed JSON payload to that URL when the invoice status changes to `paid`, `partial`, or `excess`.
+
+```json
+{
+  "invoice_id": "a1b2c3d4-...",
+  "invoice_number": "INV-0001",
+  "status": "paid",
+  "tx_hash": "0x...",
+  "paid_amount": "1550.00",
+  "paid_at": "2026-05-15T10:23:45.000Z"
+}
+```
+
+The request includes an `X-Kibble-Signature` header formatted as `sha256={hex}`. Verify it using the `webhook_secret` returned when you created the invoice. See [Webhooks](/webhooks/overview) for verification details.

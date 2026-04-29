@@ -1,0 +1,224 @@
+---
+title: "kibble invoice: create and send a USDC invoice"
+description: "Walk through every prompt in the kibble invoice flow: vendor details, line items, due dates, wallet selection, and what gets emailed to your vendor on creation."
+---
+
+The `kibble invoice` flow creates a professional PDF invoice, assigns a unique deposit address for USDC payment, and emails the invoice to your vendor immediately. When the vendor pays, Kibble detects the on-chain USDC transfer and sends you a payment confirmation email with the invoice number. The entire flow runs from your terminal in under two minutes.
+
+## Prerequisites
+
+Make sure you have Node 18 or later installed, then run:
+
+```bash
+npx create-kibble
+```
+
+Select **kibble invoice** from the action menu after entering your business name and email.
+
+## Interactive walkthrough
+
+<Steps>
+  <Step title="Enter your business address">
+    This address appears in the "From" section of the PDF invoice. It must be non-empty.
+
+    ```
+    ◆  Your business address (appears on invoices)
+    │  742 Evergreen Terrace, Springfield, OR 97401
+    ```
+  </Step>
+
+  <Step title="Enter the vendor details">
+    Provide the name, email, and optionally the address of the person or company you're billing.
+
+    ```
+    ◆  Who are you billing? (vendor / customer name)
+    │  Globex Corporation
+
+    ◆  Vendor email (where to send the invoice)
+    │  ap@globex.example.com
+
+    ◆  Vendor address (optional)
+    │  1 Globex Plaza, Cypress Creek, TN 37188
+    ```
+
+    <Note>
+      The invoice PDF is emailed to the vendor address as soon as the invoice is created. Make sure the email address is correct before proceeding.
+    </Note>
+  </Step>
+
+  <Step title="Set the due date">
+    Enter the payment due date in `YYYY-MM-DD` format.
+
+    ```
+    ◆  Due date (YYYY-MM-DD)
+    │  2026-06-30
+    ```
+  </Step>
+
+  <Step title="Add line items">
+    Add one or more line items. Each item has a description, quantity, and unit price in USDC. After each item, you'll be asked whether to add another.
+
+    ```
+    ◆  Line item 1 — description
+    │  Strategy consulting
+
+    ◆  Quantity
+    │  1
+
+    ◆  Unit price (USDC)
+    │  2500.00
+
+    ◆  Add another line item?
+    │  Yes
+
+    ◆  Line item 2 — description
+    │  Design mockups
+
+    ◆  Quantity
+    │  3
+
+    ◆  Unit price (USDC)
+    │  400.00
+
+    ◆  Add another line item?
+    │  No
+    ```
+
+    The invoice total is calculated by summing `quantity × unit_price` across all line items. In this example: `(1 × 2500.00) + (3 × 400.00) = 3700.00 USDC`.
+
+    <Warning>
+      You can add a maximum of **30 line items** per invoice. If you reach the limit, the CLI moves on automatically.
+    </Warning>
+  </Step>
+
+  <Step title="Add notes (optional)">
+    Include any payment terms, references, or additional context. Press Enter to skip.
+
+    ```
+    ◆  Notes for this invoice (optional)
+    │  Wire reference: PO-2026-0042. Net-30 terms apply.
+    ```
+  </Step>
+
+  <Step title="Choose a wallet">
+    Select the wallet that will receive USDC when the vendor pays.
+
+    ```
+    ◆  Where should payments land?
+    │  ● Create a wallet for me  (recommended — Kibble provisions it)
+    │  ○ Use my existing USDC address on Base
+    ```
+
+    If you choose **BYO (bring your own)**, enter your Base-compatible EVM address at the next prompt.
+
+    ```
+    ◆  Your USDC wallet address on Base
+    │  0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+    ```
+  </Step>
+
+  <Step title="Invoice created and sent">
+    Kibble generates the invoice, assigns a deposit address, emails the PDF to the vendor, and opens the invoice URL in your browser.
+
+    ```
+    ◆  Invoice created!
+
+    Invoice INV-0042 created.
+
+    https://pay.kibble.sh/invoice/inv-0042-8g7h
+
+    PDF:     https://pay.kibble.sh/invoice/inv-0042-8g7h/pdf
+    Deposit: 0x4a3e...c92f
+    Total:   3700.00 USDC
+
+    Sent to ap@globex.example.com. Opening in your browser…
+    ```
+  </Step>
+</Steps>
+
+## Output reference
+
+After the flow completes, the CLI prints four values:
+
+| Output | Description |
+|---|---|
+| **Invoice URL** | The hosted invoice page. You can share this with your vendor as an alternative to the PDF. |
+| **PDF URL** | Direct link to download the invoice as a PDF. |
+| **Deposit address** | The Base wallet address the vendor should send USDC to. It's printed on the invoice automatically. |
+| **Total** | The sum of all line items, denominated in USDC. |
+
+## Email notifications
+
+Two emails are sent automatically:
+
+- **Vendor email** — sent immediately when the invoice is created. It includes the PDF attachment, the total amount due, the deposit address, and the due date.
+- **Merchant confirmation** — sent to you when payment is detected on-chain. The subject line is `Paid: INV-XXXX` where `XXXX` is the invoice number.
+
+## Complete example session
+
+```
+  ██╗  ██╗██╗██████╗ ██████╗ ██╗     ███████╗
+  ...
+
+  The bank in your terminal.
+
+◆  What's your business name?
+│  Meridian Advisory Group
+
+◆  What's your email?
+│  billing@meridian.example.com
+
+◆  What do you want to do?
+│  kibble invoice
+
+◆  Your business address (appears on invoices)
+│  88 Market Street, Suite 400, San Francisco, CA 94105
+
+◆  Who are you billing? (vendor / customer name)
+│  Nexus Ventures
+
+◆  Vendor email (where to send the invoice)
+│  finance@nexus.example.com
+
+◆  Vendor address (optional)
+│  [Enter — skipped]
+
+◆  Due date (YYYY-MM-DD)
+│  2026-07-15
+
+◆  Line item 1 — description
+│  Fractional CFO services — June 2026
+
+◆  Quantity
+│  1
+
+◆  Unit price (USDC)
+│  4000.00
+
+◆  Add another line item?
+│  No
+
+◆  Notes for this invoice (optional)
+│  [Enter — skipped]
+
+◆  Where should payments land?
+│  Create a wallet for me (recommended — Kibble provisions it)
+
+◆  Invoice created!
+
+Invoice INV-0017 created.
+
+https://pay.kibble.sh/invoice/inv-0017-k2p9
+
+PDF:     https://pay.kibble.sh/invoice/inv-0017-k2p9/pdf
+Deposit: 0x91ab...3d7e
+Total:   4000.00 USDC
+
+Sent to finance@nexus.example.com. Opening in your browser…
+```
+
+## Next steps
+
+- To create invoices programmatically without prompts, use the [`--stdin` flag](/cli/automation).
+- To validate an invoice payload before sending it, use [`--stdin --dry-run`](/cli/automation).
+- To set up payment-received webhooks, see [Webhooks overview](/webhooks/overview).

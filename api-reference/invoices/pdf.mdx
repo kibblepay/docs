@@ -1,0 +1,76 @@
+---
+title: "GET /api/invoices/{id}/pdf — Download Invoice PDF"
+description: "Stream or download a rendered invoice PDF by invoice UUID. Returns binary PDF with Content-Disposition inline using the invoice number as the filename."
+---
+
+`GET /api/invoices/{id}/pdf` streams the rendered PDF for an invoice directly in the response body. The response uses `Content-Disposition: inline` with the invoice number as the filename (e.g. `INV-0001.pdf`), so browsers will display it in a PDF viewer rather than force-downloading it. You can add the `download` attribute to an anchor tag to trigger a file download instead.
+
+<Note>
+  Responses are cached with `Cache-Control: private, max-age=60`. If you regenerate the invoice or need a fresh version, wait 60 seconds or bypass the cache with appropriate request headers.
+</Note>
+
+## Request
+
+**`GET https://pay.kibble.sh/api/invoices/{id}/pdf`**
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the invoice whose PDF you want to retrieve.
+</ParamField>
+
+## Response
+
+Returns `200 OK` with the PDF binary as the response body.
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/pdf` |
+| `Content-Disposition` | `inline; filename="INV-0001.pdf"` |
+| `Cache-Control` | `private, max-age=60` |
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| `404` | No invoice found for the given ID, or PDF rendering failed. |
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+# View in terminal (binary output — pipe to file)
+curl --request GET \
+  --url https://pay.kibble.sh/api/invoices/3f8a2c1e-4b9d-4e7f-a012-9c3d5e6f7a8b/pdf \
+  --output INV-0001.pdf
+```
+
+```javascript JavaScript
+// Download the PDF as a file in the browser
+const id = '3f8a2c1e-4b9d-4e7f-a012-9c3d5e6f7a8b';
+const response = await fetch(
+  `https://pay.kibble.sh/api/invoices/${id}/pdf`
+);
+
+const blob = await response.blob();
+const url = URL.createObjectURL(blob);
+
+const a = document.createElement('a');
+a.href = url;
+a.download = 'invoice.pdf';
+a.click();
+
+URL.revokeObjectURL(url);
+```
+
+</CodeGroup>
+
+You can also embed the PDF URL directly in an `<a>` tag to let users open or download it from a browser:
+
+```html
+<a href="https://pay.kibble.sh/api/invoices/3f8a2c1e-4b9d-4e7f-a012-9c3d5e6f7a8b/pdf"
+   target="_blank">
+  View invoice PDF
+</a>
+```

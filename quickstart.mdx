@@ -1,0 +1,123 @@
+---
+title: "Quickstart: get your first USDC payment link live"
+description: "Run npx create-kibble, choose kibble charge, enter an amount, and share the link. No sign-up, no dashboard — just your terminal and a USDC address."
+---
+
+The fastest way to start accepting USDC is to run `npx create-kibble` and follow the interactive prompts. The whole process takes under five minutes and produces a shareable payment link plus a merchant portal where you can track incoming transfers.
+
+## Interactive setup
+
+<Steps>
+  <Step title="Run the CLI">
+    Open your terminal and run:
+
+    ```bash
+    npx create-kibble
+    ```
+
+    The Kibble banner appears and the CLI asks for your business name and email. These are used to label your payment link and, if you choose the `privy` wallet option, to provision a deposit address tied to your email.
+
+    ```
+      ██╗  ██╗██╗██████╗ ██████╗ ██╗     ███████╗
+      ██║ ██╔╝██║██╔══██╗██╔══██╗██║     ██╔════╝
+      █████╔╝ ██║██████╔╝██████╔╝██║     █████╗
+      ██╔═██╗ ██║██╔══██╗██╔══██╗██║     ██╔══╝
+      ██║  ██╗██║██████╔╝██████╔╝███████╗███████╗
+      ╚═╝  ╚═╝╚═╝╚═════╝ ╚═════╝ ╚══════╝╚══════╝
+
+      The bank in your terminal.
+    ```
+  </Step>
+
+  <Step title="Choose kibble charge">
+    When prompted for what you want to do, select **kibble charge**.
+
+    ```
+    ◆  What do you want to do?
+    ●  kibble charge   accept payments, generate links, track receivables
+    ○  kibble invoice  create, send, and track invoices
+    ```
+
+    The CLI then asks for the amount you want to charge in USDC, such as `49.00`. Enter a positive number with up to two decimal places.
+  </Step>
+
+  <Step title="Choose a wallet">
+    Select where incoming payments should land.
+
+    ```
+    ◆  Where should payments land?
+    ●  Create a wallet for me   recommended — Kibble provisions it
+    ○  Use my existing USDC address on Base
+    ```
+
+    If you are new to crypto wallets, choose **Create a wallet for me**. Kibble provisions an embedded wallet via your email using Privy and reuses that same address for every future charge you create with the same email. See [Wallets](/concepts/wallets) for more detail.
+
+    If you already have a USDC address on Base, choose the second option and paste your `0x…` address when prompted.
+  </Step>
+
+  <Step title="Share your link">
+    Kibble creates the payment link and prints the result:
+
+    ```
+    You're live.
+
+    https://pay.kibble.sh/pay/ab3xq7yz
+    Merchant portal:  https://pay.kibble.sh/merchant/ab3xq7yz
+    Wallet:           0xAbCd...1234
+    Embed snippet:    <iframe src="https://pay.kibble.sh/pay/ab3xq7yz" width="400" height="600" frameborder="0"></iframe>
+    ```
+
+    Share the payment link with your payer. They open it in a browser, scan the QR code, and send USDC on Base. Your merchant portal updates as soon as the transfer is detected on-chain.
+  </Step>
+</Steps>
+
+## Non-interactive mode with `--yes`
+
+If you want to script payment link creation — in a CI pipeline, an agent workflow, or a shell script — use the `--yes` flag. Kibble reads configuration from environment variables and prints the result as JSON.
+
+```bash
+KIBBLE_EMAIL="you@example.com" \
+KIBBLE_AMOUNT="149.00" \
+KIBBLE_WALLET_TYPE="privy" \
+KIBBLE_BUSINESS_NAME="Acme SaaS" \
+npx create-kibble --yes
+```
+
+Expected output:
+
+```json
+{
+  "slug": "ab3xq7yz",
+  "payment_link": "https://pay.kibble.sh/pay/ab3xq7yz",
+  "merchant_portal": "https://pay.kibble.sh/merchant/ab3xq7yz",
+  "wallet_address": "0xAbCd...1234",
+  "iframe_snippet": "<iframe src=\"https://pay.kibble.sh/pay/ab3xq7yz\" width=\"400\" height=\"600\" frameborder=\"0\"></iframe>",
+  "js_widget_snippet": "<script src=\"https://pay.kibble.sh/w.js\" data-slug=\"ab3xq7yz\"></script>"
+}
+```
+
+<Note>
+`KIBBLE_EMAIL` and `KIBBLE_AMOUNT` are required when using `--yes`. The CLI exits with a non-zero status and a JSON error object if either is missing.
+</Note>
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `KIBBLE_EMAIL` | Yes | Your merchant email address |
+| `KIBBLE_AMOUNT` | Yes | Charge amount in USDC (e.g. `49.00`) |
+| `KIBBLE_WALLET_TYPE` | No | `privy` (default) or `byo` |
+| `KIBBLE_WALLET` | If `byo` | Your USDC wallet address on Base |
+| `KIBBLE_BUSINESS_NAME` | No | Defaults to `My Business` |
+| `KIBBLE_BASE_URL` | No | Override the API base URL for non-production environments |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Payment links" icon="link" href="/concepts/payment-links">
+    Learn about statuses, the merchant portal, and how to embed a payment widget.
+  </Card>
+  <Card title="Invoices" icon="file-text" href="/concepts/invoices">
+    Send itemized PDF invoices to vendors and get notified when they pay.
+  </Card>
+</CardGroup>

@@ -1,0 +1,130 @@
+---
+title: "Payment links: shareable USDC checkout URLs with QR codes"
+description: "A payment link is a unique URL tied to a deposit address. Share it, embed it, or track it in the merchant portal. Payments settle on Base in real time."
+---
+
+A payment link is a short URL — `https://pay.kibble.sh/pay/{slug}` — paired with a QR code and a deposit address. When you create one, Kibble generates an 8-character slug, stores the expected amount, and begins monitoring the deposit address for USDC transfers on Base. The payer opens the link, scans the QR code with their crypto wallet, sends USDC, and the status updates automatically.
+
+## Creating a payment link
+
+You can create a payment link interactively via the CLI or programmatically via the REST API.
+
+<Tabs>
+  <Tab title="CLI (interactive)">
+    Run `npx create-kibble` and select **kibble charge** when prompted. See the [Quickstart](/quickstart) for the full walkthrough.
+  </Tab>
+  <Tab title="CLI (non-interactive)">
+    ```bash
+    KIBBLE_EMAIL="you@example.com" \
+    KIBBLE_AMOUNT="99.00" \
+    KIBBLE_WALLET_TYPE="privy" \
+    KIBBLE_BUSINESS_NAME="Acme SaaS" \
+    npx create-kibble --yes
+    ```
+  </Tab>
+  <Tab title="REST API">
+    ```bash
+    curl -X POST https://pay.kibble.sh/api/links \
+      -H "Content-Type: application/json" \
+      -d '{
+        "business_name": "Acme SaaS",
+        "email": "you@example.com",
+        "expected_amount": "99.00",
+        "wallet_type": "privy"
+      }'
+    ```
+
+    Successful response:
+
+    ```json
+    {
+      "slug": "ab3xq7yz",
+      "payment_link": "https://pay.kibble.sh/pay/ab3xq7yz",
+      "merchant_portal": "https://pay.kibble.sh/merchant/ab3xq7yz",
+      "wallet_address": "0xAbCd...1234",
+      "iframe_snippet": "<iframe src=\"https://pay.kibble.sh/pay/ab3xq7yz\" width=\"400\" height=\"600\" frameborder=\"0\"></iframe>",
+      "js_widget_snippet": "<script src=\"https://pay.kibble.sh/w.js\" data-slug=\"ab3xq7yz\"></script>"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Request fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `business_name` | string | Yes | Shown on the payment page |
+| `email` | string | Yes | Your merchant email |
+| `expected_amount` | string | Yes | Amount in USDC, up to 2 decimal places (e.g. `"49.00"`) |
+| `wallet_type` | string | Yes | `privy` or `byo` |
+| `wallet_address` | string | If `byo` | Your USDC address on Base (`0x…`) |
+| `product_description` | string | No | Optional description shown on the payment page |
+
+## The merchant portal
+
+Every payment link has a corresponding merchant portal at `https://pay.kibble.sh/merchant/{slug}`. The portal shows:
+
+- The current payment status
+- The expected amount and any amount received
+- The on-chain transaction hash once a transfer is detected
+
+Bookmark the merchant portal URL immediately after creating a link — Kibble does not send it by email.
+
+## Embedding a payment widget
+
+The API response includes two embed options you can drop directly into a webpage.
+
+### iframe
+
+```html
+<iframe
+  src="https://pay.kibble.sh/pay/{slug}"
+  width="400"
+  height="600"
+  frameborder="0">
+</iframe>
+```
+
+### JavaScript widget
+
+```html
+<script
+  src="https://pay.kibble.sh/w.js"
+  data-slug="{slug}">
+</script>
+```
+
+The JS widget renders a self-contained checkout component. Replace `{slug}` with the actual slug returned when you created the link.
+
+## Payment statuses
+
+Kibble monitors the deposit address using Alchemy webhooks. When a USDC transfer arrives on Base, the status transitions based on how the received amount compares to the expected amount.
+
+<AccordionGroup>
+  <Accordion title="pending">
+    The payment link has been created and the deposit address is being monitored. No on-chain transfer has been detected yet. This is the initial status for every new link.
+  </Accordion>
+  <Accordion title="confirmed">
+    The received amount exactly matches the expected amount. The payment is complete.
+  </Accordion>
+  <Accordion title="partial">
+    The received amount is less than the expected amount. The link remains open — additional transfers can bring it to `confirmed`.
+  </Accordion>
+  <Accordion title="excess">
+    The received amount exceeds the expected amount. You can view the overpaid amount in the merchant portal. Kibble does not automatically refund the difference.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+Only USDC on Base is accepted. Transfers of any other token — or USDC on a different chain — are not detected and will not update the payment status. The USDC contract address is `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` on chain ID `8453`.
+</Warning>
+
+## How detection works
+
+When you create a payment link, Kibble begins monitoring the deposit address on Base for incoming USDC transfers. When a transfer is detected, Kibble:
+
+1. Confirms the received token is USDC on Base.
+2. Compares the transferred amount to the expected amount.
+3. Updates the payment link status to `confirmed`, `partial`, or `excess`.
+
+Status updates are reflected in the merchant portal and via the status polling endpoint within seconds of the on-chain transfer. The deposit address is dedicated to this payment link and is not shared with other links.

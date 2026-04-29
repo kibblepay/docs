@@ -1,0 +1,79 @@
+---
+title: "Kibble REST API: endpoints, errors, and base URL"
+description: "Complete reference for the Kibble REST API. Covers base URL, request format, error shapes, and an index of all payment link, invoice, and merchant endpoints."
+---
+
+The Kibble API is a REST API that lets you create payment links, generate invoices, and retrieve payment status programmatically. All requests are made over HTTPS to the base URL `https://pay.kibble.sh`, and all request and response bodies use JSON.
+
+<Note>
+  This is a proof-of-concept API. There is currently no authentication required — all endpoints are open. Auth will be introduced in a future release.
+</Note>
+
+## Base URL
+
+```
+https://pay.kibble.sh
+```
+
+## Request format
+
+Set the `Content-Type` header to `application/json` for all requests with a body.
+
+```bash
+curl --request POST \
+  --url https://pay.kibble.sh/api/links \
+  --header 'Content-Type: application/json' \
+  --data '{ ... }'
+```
+
+## Error format
+
+All errors return a JSON body. Validation errors include a structured object; all other errors return a plain string.
+
+**Plain error:**
+
+```json
+{
+  "error": "Not found"
+}
+```
+
+**Validation error (400):**
+
+```json
+{
+  "error": {
+    "formErrors": [],
+    "fieldErrors": {
+      "email": ["Invalid email"],
+      "expected_amount": ["Invalid USDC amount"]
+    }
+  }
+}
+```
+
+## Endpoints
+
+### Payment links
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/links` | [Create a payment link](/api-reference/links/create) |
+| `GET` | `/api/links/{slug}` | [Get payment link details](/api-reference/links/get) |
+| `GET` | `/api/payments/status/{slug}` | [Get real-time payment status](/api-reference/links/payment-status) |
+
+### Invoices
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/invoices` | [Create an invoice](/api-reference/invoices/create) |
+| `GET` | `/api/invoices/{id}` | [Get invoice details](/api-reference/invoices/get) |
+| `GET` | `/api/invoices/{id}/status` | [Get invoice payment status](/api-reference/invoices/status) |
+| `POST` | `/api/invoices/{id}/send` | [Re-send vendor email](/api-reference/invoices/send) |
+| `GET` | `/api/invoices/{id}/pdf` | [Download invoice PDF](/api-reference/invoices/pdf) |
+
+### Merchant
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/merchant/{slug}` | [Get merchant dashboard data](/api-reference/merchant/dashboard) |

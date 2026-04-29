@@ -1,0 +1,151 @@
+---
+title: "Automate invoice creation from scripts and pipelines"
+description: "Use the Kibble CLI's stdin mode or the REST API to generate invoices programmatically from shell scripts, CI pipelines, or backend services."
+---
+
+If you need to create invoices in bulk, on a schedule, or as part of a deployment pipeline, Kibble gives you two automation-friendly approaches: pipe a JSON payload to `npx create-kibble --stdin`, or call `POST /api/invoices` directly from any HTTP client. Both accept the same schema and return the same response.
+
+## Option 1: CLI stdin mode
+
+The `--stdin` flag tells the CLI to read a JSON payload from standard input instead of running interactively. This makes it easy to script invoice creation in bash, cron jobs, or CI workflows.
+
+### Basic usage
+
+```bash
+echo '{
+  "merchant_email": "you@example.com",
+  "merchant_name": "Acme Corp",
+  "merchant_address": "1 Market St, San Francisco, CA",
+  "vendor_email": "vendor@supplier.com",
+  "vendor_name": "Supplier Ltd",
+  "vendor_address": "42 Industrial Rd, Austin, TX",
+  "line_items": [
+    { "description": "Software license Q2", "quantity": 1, "unit_price": "4000.00" },
+    { "description": "Support retainer", "quantity": 3, "unit_price": "500.00" }
+  ],
+  "issue_date": "2026-04-28",
+  "due_date": "2026-05-28",
+  "wallet_type": "privy",
+  "send_now": true
+}' | npx create-kibble --stdin
+```
+
+### Dry-run validation
+
+Add `--dry-run` to validate the payload schema without creating anything. Use this in CI to catch errors before they reach production.
+
+```bash
+cat invoice.json | npx create-kibble --stdin --dry-run
+```
+
+### Piping from a file
+
+```bash
+npx create-kibble --stdin < invoice.json
+```
+
+<Tip>
+Set `"send_now": false` to create a draft invoice without emailing the vendor. You can send it later with `POST /api/invoices/{id}/send` once you have reviewed it.
+</Tip>
+
+## Option 2: REST API
+
+Call `POST /api/invoices` from any language or HTTP client. This is the right approach when you are generating invoices from application code rather than shell scripts.
+
+```bash
+curl -X POST https://pay.kibble.sh/api/invoices \
+  -H "Content-Type: application/json" \
+  -d @invoice.json
+```
+
+## Full request schema
+
+All fields match the `CreateInvoiceSchema` validation. Required fields are marked with an asterisk.
+
+| Field | Type | Description |
+|---|---|---|
+| `merchant_email` * | string | Your email address (merchant) |
+| `merchant_name` * | string | Your business name |
+| `merchant_address` * | string | Your business address |
+| `vendor_email` * | string | Your customer's email (the bill recipient) |
+| `vendor_name` * | string | Your customer's name |
+| `vendor_address` | string | Your customer's address (optional) |
+| `line_items` * | array | At least one line item (max 30) |
+| `line_items[].description` * | string | Description of the product or service |
+| `line_items[].quantity` * | number | Quantity (positive number) |
+| `line_items[].unit_price` * | string | Unit price in USDC (e.g. `"150.00"`) |
+| `issue_date` | string | ISO date `YYYY-MM-DD` — defaults to today |
+| `due_date` * | string | ISO date `YYYY-MM-DD` |
+| `notes` | string | Optional notes printed on the invoice |
+| `wallet_type` * | string | `"privy"` (Kibble-provisioned) or `"byo"` (your wallet) |
+| `wallet_address` | string | Required when `wallet_type` is `"byo"` |
+| `webhook_url` | string | URL to receive payment notifications |
+| `send_now` | boolean | `true` to email immediately, `false` to save as draft (default: `true`) |
+
+## Complete JSON example
+
+```json
+{
+  "merchant_email": "you@example.com",
+  "merchant_name": "Acme Corp",
+  "merchant_address": "1 Market St, San Francisco, CA 94105",
+  "vendor_email": "vendor@supplier.com",
+  "vendor_name": "Supplier Ltd",
+  "vendor_address": "42 Industrial Rd, Austin, TX 78701",
+  "line_items": [
+    {
+      "description": "Software license Q2",
+      "quantity": 1,
+      "unit_price": "4000.00"
+    },
+    {
+      "description": "Support retainer",
+      "quantity": 3,
+      "unit_price": "500.00"
+    }
+  ],
+  "issue_date": "2026-04-28",
+  "due_date": "2026-05-28",
+  "notes": "Payment in USDC on Base only. Net 30.",
+  "wallet_type": "privy",
+  "webhook_url": "https://yourapp.example.com/webhooks/kibble",
+  "send_now": false
+}
+```
+
+## API response
+
+A successful request returns HTTP `201` with the invoice details:
+
+```json
+{
+  "invoice_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "invoice_number": "INV-0007",
+  "slug": "xyz98765",
+  "invoice_url": "https://pay.kibble.sh/i/xyz98765",
+  "pdf_url": "https://pay.kibble.sh/api/invoices/a1b2c3d4-.../pdf",
+  "deposit_address": "0xAbCd...",
+  "total_amount": "5500.00",
+  "sent_at": null,
+  "webhook_secret": "Xk9mLqR3vN8pT2wY..."
+}
+```
+
+`webhook_secret` is only present in the response when you included a `webhook_url`. Store it immediately — it is not accessible again through the API.
+
+## Scripting multiple invoices
+
+To create invoices for a list of vendors, loop over your data and pipe each payload:
+
+```bash
+#!/usr/bin/env bash
+# create-invoices.sh — reads a newline-separated list of vendor JSON objects
+
+while IFS= read -r vendor_json; do
+  echo "$vendor_json" | npx create-kibble --stdin
+done < vendors.jsonl
+```
+
+<Note>
+USDC amounts must be strings formatted as decimal numbers (e.g. `"150.00"`). Integer values or unquoted numbers will fail schema validation.
+</Note>

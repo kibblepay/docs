@@ -1,0 +1,83 @@
+---
+title: "Kibble CLI: interactive and automated payment commands"
+description: "Run npx create-kibble to accept USDC payments and send invoices from your terminal — no global install, three modes: interactive, --yes, and --stdin."
+---
+
+The Kibble CLI lets you create USDC payment links and professional PDF invoices directly from your terminal. It runs via `npx` — no global installation needed — and works in three modes: an interactive wizard for ad-hoc use, a non-interactive `--yes` flag for scripting and CI, and a `--stdin` flag for piping structured JSON payloads from automated pipelines or agents.
+
+## Installation
+
+You don't need to install anything globally. Run the CLI with `npx`:
+
+```bash
+npx create-kibble
+```
+
+Node 18 or later is required. The CLI fetches the latest version from npm on each run.
+
+## Interactive mode
+
+When you run `npx create-kibble` without any flags, the CLI starts an interactive session. It walks you through a short sequence of prompts before presenting the action menu.
+
+<Steps>
+  <Step title="Analytics consent (EU only)">
+    If your system timezone is in the EU, you'll be asked whether to enable anonymous analytics. You can opt out at any time by setting `DO_NOT_TRACK=1`.
+  </Step>
+  <Step title="Business name">
+    Enter the name that will appear on payment links and invoices.
+  </Step>
+  <Step title="Email">
+    Your merchant email. Used for payment confirmation notifications.
+  </Step>
+  <Step title="Choose an action">
+    Select from the action menu:
+
+    | Action | Status | Description |
+    |---|---|---|
+    | `kibble charge` | Available | Generate a payment link |
+    | `kibble invoice` | Available | Create and send a PDF invoice |
+    | `kibble yield` | Coming soon | Earn yield on your USDC treasury |
+    | `kibble cards` | Coming soon | Programmable spend cards |
+    | `kibble form` | Coming soon | Entity formation from your terminal |
+  </Step>
+</Steps>
+
+## Two primary commands
+
+<CardGroup cols={2}>
+  <Card title="kibble charge" icon="bolt" href="/cli/charge">
+    Generate a payment link with a USDC amount. Share it with a customer and get paid on Base. Outputs a URL, QR code, merchant portal link, and iframe embed snippet.
+  </Card>
+  <Card title="kibble invoice" icon="file-invoice" href="/cli/invoice">
+    Create a professional PDF invoice with line items, send it to your vendor by email, and collect USDC payment via a dedicated deposit address.
+  </Card>
+</CardGroup>
+
+## Three operating modes
+
+<CardGroup cols={3}>
+  <Card title="Interactive" icon="terminal">
+    Run `npx create-kibble` with no flags. Guided prompts walk you through each step. Best for one-off payments and invoices.
+  </Card>
+  <Card title="--yes (non-interactive)" icon="bolt" href="/cli/automation">
+    Pass `--yes` and supply env vars. Outputs JSON to stdout. Best for scripts, CI pipelines, and agent-driven workflows.
+  </Card>
+  <Card title="--stdin (programmatic)" icon="code" href="/cli/automation">
+    Pipe a JSON invoice payload to stdin. Returns a JSON response. Best for server-side automation and batch invoice generation.
+  </Card>
+</CardGroup>
+
+<Note>
+  For scripting and automation details — including all env vars, the `--stdin` JSON schema, and pipeline examples — see [Automation](/cli/automation).
+</Note>
+
+## Environment variables
+
+| Variable | Description |
+|---|---|
+| `DO_NOT_TRACK=1` | Disable anonymous usage analytics |
+| `KIBBLE_BASE_URL` | Point the CLI at a non-production API (e.g. `http://localhost:3000`) |
+
+## What happens next
+
+After the CLI creates a payment link or invoice, it prints the relevant URLs and opens your browser automatically. Payments are detected on-chain in real time — you'll receive an email when the USDC arrives.
